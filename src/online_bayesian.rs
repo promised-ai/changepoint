@@ -152,11 +152,12 @@ mod tests {
 
         let res: Vec<Vec<f64>> = data.iter().map(|d| cpd.step(d)).collect();
 
-        // Write output
-        // utils::write_data_and_r("obvious_jump", &data, &res).unwrap();
-
         let change_points =
             utils::most_likely_breaks(&res, utils::ChangePointDetectionMethod::NonIncremental);
+
+        // Write output
+        // utils::write_data_and_r("obvious_jump", &data, &res, &change_points).unwrap();
+
         assert_eq!(change_points, vec![500]);
     }
 
@@ -172,10 +173,12 @@ mod tests {
 
         let res: Vec<Vec<f64>> = data.iter().map(|d| cpd.step(d)).collect();
 
-        // Write output
-        // utils::write_data_and_r("mining", &data, &res).unwrap();
         let change_points =
             utils::most_likely_breaks(&res, utils::ChangePointDetectionMethod::DropThreshold(0.5));
+
+        // Write output
+        // utils::write_data_and_r("mining", &data, &res, &change_points).unwrap();
+        
         assert_eq!(change_points, vec![50, 107]);
     }
 
@@ -206,10 +209,12 @@ mod tests {
 
         let res: Vec<Vec<f64>> = data.iter().map(|d| cpd.step(d)).collect();
 
-        // Write output
-        //utils::write_data_and_r("housing_change", &data, &res).unwrap();
         let change_points =
             utils::most_likely_breaks(&res, utils::ChangePointDetectionMethod::DropThreshold(0.1));
+
+        // Write output
+        // utils::write_data_and_r("housing_change", &data, &res, &change_points).unwrap();
+
         assert_eq!(change_points, vec![81, 156]);
     }
 }

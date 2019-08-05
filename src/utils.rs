@@ -7,13 +7,20 @@ use std::io;
 use std::io::prelude::*;
 
 /// Writes data and R to `{prefix}_data.txt` and `{prefix}_r.txt`, respectively.
-pub fn write_data_and_r<T: Display>(prefix: &str, data: &[T], r: &Vec<Vec<f64>>) -> io::Result<()> {
+pub fn write_data_and_r<T: Display>(
+    prefix: &str,
+    data: &[T],
+    r: &Vec<Vec<f64>>,
+    change_points: &Vec<usize>,
+) -> io::Result<()> {
+    // Write Data
     let data_file_path = format!("{}_data.txt", prefix);
     let mut data_f = File::create(data_file_path)?;
     data.iter()
         .map(|d| writeln!(data_f, "{}", d))
         .collect::<io::Result<()>>()?;
 
+    // Write R
     let r_file_path = format!("{}_r.txt", prefix);
     let mut r_f = File::create(r_file_path)?;
 
@@ -30,6 +37,11 @@ pub fn write_data_and_r<T: Display>(prefix: &str, data: &[T], r: &Vec<Vec<f64>>)
             Ok(())
         })
         .collect::<io::Result<()>>()?;
+
+    // Write change points
+    let change_points_path = format!("{}_change_points.txt", prefix);
+    let mut cp_f = File::create(change_points_path)?;
+    change_points.iter().map(|cp| writeln!(cp_f, "{}", cp)).collect::<io::Result<()>>()?;
 
     Ok(())
 }
