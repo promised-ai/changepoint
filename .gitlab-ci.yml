@@ -1,0 +1,27 @@
+variables:
+    CARGO_HOME: $CI_PROJECT_DIR/cargo
+    RUST_BACKTRACE: 1
+
+before_script:
+    - rustup component add rustfmt-preview
+
+test:cargo-nightly:
+    image: "rustlang/rust:nightly"
+    before_script:
+        - rustup install nightly-2019-07-09 --no-self-update
+        - rustup override set nightly-2019-07-09
+        - rustup component add rustfmt --toolchain nightly-2019-07-09
+    script:
+        - rustc --version && cargo --version
+        - cargo fmt --all -- --check
+        - cargo build
+        - time cargo test --jobs 1
+        - cargo bench -- --test
+
+test:cargo-stable:
+    image: "rust:1.35"
+    script:
+        - rustc --version && cargo --version
+        - cargo build
+        - time cargo test --jobs 1
+        - cargo bench -- --test
