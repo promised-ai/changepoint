@@ -41,7 +41,10 @@ pub fn write_data_and_r<T: Display>(
     // Write change points
     let change_points_path = format!("{}_change_points.txt", prefix);
     let mut cp_f = File::create(change_points_path)?;
-    change_points.iter().map(|cp| writeln!(cp_f, "{}", cp)).collect::<io::Result<()>>()?;
+    change_points
+        .iter()
+        .map(|cp| writeln!(cp_f, "{}", cp))
+        .collect::<io::Result<()>>()?;
 
     Ok(())
 }

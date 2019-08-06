@@ -84,14 +84,15 @@ where
             for i in (0..self.t).rev() {
                 // Evaluate growth probabilites and shift probabilities down
                 // scaling by the hazard function and the predprobs
-                let pp = self.predictive_prior
+                let pp = self
+                    .predictive_prior
                     .ln_pp(data, &DataOrSuffStat::SuffStat(&self.suff_stats[i]))
                     .exp();
 
                 let h = (self.hazard)(i);
                 self.r[i + 1] = self.r[i] * pp * (1.0 - h);
                 r0 += self.r[i] * pp * h;
-                r_sum += self.r[i+1];
+                r_sum += self.r[i + 1];
             }
             r_sum += r0;
             // Accumulate mass back down to r[0], the probability there was a
@@ -167,7 +168,7 @@ mod tests {
 
         // Write output
         // utils::write_data_and_r("mining", &data, &res, &change_points).unwrap();
-        
+
         assert_eq!(change_points, vec![50, 107]);
     }
 
