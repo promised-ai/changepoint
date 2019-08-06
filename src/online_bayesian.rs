@@ -77,42 +77,31 @@ where
             // The initial point is, by definition, a change point
             self.r.push(1.0);
         } else {
-            let pred_probs: Vec<f64> = self
-                .suff_stats
-                .iter()
-                .map(|stat| {
-                    self.predictive_prior
-                        .ln_pp(data, &DataOrSuffStat::SuffStat(stat))
-                        .exp()
-                })
-                .collect();
+            self.r.push(std::f64::NAN);
+            let mut r0 = 0.0;
+            let mut r_sum = 0.0;
 
-            // println!("pp = {:?}", pred_probs);
+            for i in (0..self.t).rev() {
+                // Evaluate growth probabilites and shift probabilities down
+                // scaling by the hazard function and the predprobs
+                let pp = self.predictive_prior
+                    .ln_pp(data, &DataOrSuffStat::SuffStat(&self.suff_stats[i]))
+                    .exp();
 
-            // evaluate the hazard function
-            let h: Vec<f64> = (0..=self.t).map(|i| (self.hazard)(i)).collect();
-
-            // TODO: The following loops could be wrapped into one.
-            // TODO: There is no need to duplicate r but it made it easier to write.
-            let mut new_r: Vec<f64> = Vec::with_capacity(self.t + 1);
-
-            // Evaluate growth probabilites and shift probabilities down
-            // scaling by the hazard function and the predprobs
-            new_r.push(std::f64::NAN); // Place holder we'll recalc later
-            for i in 0..self.t {
-                new_r.push(self.r[i] * pred_probs[i] * (1.0 - h[i]));
+                let h = (self.hazard)(i);
+                self.r[i + 1] = self.r[i] * pp * (1.0 - h);
+                r0 += self.r[i] * pp * h;
+                r_sum += self.r[i+1];
             }
-
+            r_sum += r0;
             // Accumulate mass back down to r[0], the probability there was a
             // change point at this location.
-            new_r[0] = (0..self.t).map(|i| self.r[i] * pred_probs[i] * h[i]).sum();
+            self.r[0] = r0;
 
             // Normalize R
-            let new_r_sum: f64 = new_r.iter().sum();
-            new_r.iter_mut().for_each(|x| {
-                *x = *x / new_r_sum;
-            });
-            self.r = new_r;
+            for i in 0..=self.t {
+                self.r[i] /= r_sum;
+            }
         }
 
         // Update the SuffStat with the new data
