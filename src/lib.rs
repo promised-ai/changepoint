@@ -1,5 +1,5 @@
 //! This library provides Change Point Detection (CPD) tools such as
-//!  * Online Bayesian CPD as `OBCPD`
+//!  * Online Bayesian CPD as `BOCPD`
 
 mod online_bayesian;
 pub use online_bayesian::*;

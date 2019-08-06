@@ -10,7 +10,7 @@ use std::collections::VecDeque;
 use std::sync::Arc;
 
 /// Online Bayesian Change Point Detection state container
-pub struct OBCPD<X, H, Fx, Pr>
+pub struct BOCPD<X, H, Fx, Pr>
 where
     H: Fn(usize) -> f64,
     Fx: Rv<X> + HasSuffStat<X>,
@@ -26,14 +26,14 @@ where
     empty_suffstat: Fx::Stat,
 }
 
-impl<X, H, Fx, Pr> OBCPD<X, H, Fx, Pr>
+impl<X, H, Fx, Pr> BOCPD<X, H, Fx, Pr>
 where
     H: Fn(usize) -> f64,
     Fx: Rv<X> + HasSuffStat<X>,
     Pr: ConjugatePrior<X, Fx>,
     Fx::Stat: Clone,
 {
-    /// Create a new OBCPD analyzer
+    /// Create a new BOCPD analyzer
     ///
     /// # Parameters
     /// * `hazard` - The hazard function for `P_{gap}`.
@@ -42,11 +42,11 @@ where
     ///
     /// # Example
     /// ```rust
-    /// use cpd::{OBCPD, constant_hazard};
+    /// use cpd::{BOCPD, constant_hazard};
     /// use rv::prelude::*;
     /// use std::sync::Arc;
     ///
-    /// let cpd = OBCPD::new(
+    /// let cpd = BOCPD::new(
     ///     constant_hazard(250.0),
     ///     &Gaussian::standard(),
     ///     Arc::new(NormalGamma::new(0.0, 1.0, 1.0, 1.0).unwrap()),
@@ -134,7 +134,7 @@ mod tests {
         let mut rng: StdRng = StdRng::seed_from_u64(0xABCD);
         let data = generators::discontinuous_jump(&mut rng, 0.0, 1.0, 10.0, 5.0, 500, 1000);
 
-        let mut cpd = OBCPD::new(
+        let mut cpd = BOCPD::new(
             constant_hazard(250.0),
             &Gaussian::standard(),
             Arc::new(NormalGamma::new(0.0, 1.0, 1.0, 1.0).unwrap()),
@@ -155,7 +155,7 @@ mod tests {
     fn coal_mining_data() {
         let data = generators::coal_mining_incidents();
 
-        let mut cpd: OBCPD<u8, _, Poisson, Gamma> = OBCPD::new(
+        let mut cpd: BOCPD<u8, _, Poisson, Gamma> = BOCPD::new(
             constant_hazard(100.0),
             &Poisson::new(123.0).unwrap(),
             Arc::new(Gamma::new(1.0, 1.0).unwrap()),
@@ -172,7 +172,7 @@ mod tests {
         assert_eq!(change_points, vec![50, 107]);
     }
 
-    /// This test checks the OBCPD algorithm against S&P/Case-Schiller 20-City
+    /// This test checks the BOCPD algorithm against S&P/Case-Schiller 20-City
     /// Composite Home Price Index.
     ///
     /// # Data Source
@@ -191,7 +191,7 @@ mod tests {
             })
             .collect();
 
-        let mut cpd = OBCPD::new(
+        let mut cpd = BOCPD::new(
             constant_hazard(250.0),
             &Gaussian::standard(),
             Arc::new(NormalGamma::new(0.0, 1.0, 1.0, 1E-5).unwrap()),
