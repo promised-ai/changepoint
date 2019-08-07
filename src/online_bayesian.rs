@@ -4,10 +4,10 @@
 //! "Bayesian Online Changepoint Detection"; Ryan Adams, David MacKay; arXiv:0710.3742
 //! Which can be found [here](https://arxiv.org/pdf/0710.3742.pdf).
 
-use rv::misc::argmax;
 use rv::prelude::*;
 use std::collections::VecDeque;
 use std::sync::Arc;
+// use crate::sparse::SparseVec;
 
 /// Online Bayesian Change Point Detection state container
 pub struct BOCPD<X, H, Fx, Pr>
@@ -20,10 +20,10 @@ where
     hazard: H,
     predictive_prior: Arc<Pr>,
     suff_stats: VecDeque<Fx::Stat>,
-    map_locations: Vec<usize>,
     t: usize,
     r: Vec<f64>,
     empty_suffstat: Fx::Stat,
+    cdf_threshold: f64,
 }
 
 impl<X, H, Fx, Pr> BOCPD<X, H, Fx, Pr>
@@ -57,16 +57,11 @@ where
             hazard,
             predictive_prior,
             suff_stats: VecDeque::new(),
-            map_locations: Vec::new(),
             t: 0,
             r: Vec::new(),
             empty_suffstat: fx.empty_suffstat(),
+            cdf_threshold: 1E-3
         }
-    }
-
-    /// Returns the MAP lengths at each step in the sequence.
-    pub fn maps(&self) -> &Vec<usize> {
-        &(self.map_locations)
     }
 
     /// Update the model with a new datum and return the distribution of run lengths.
@@ -77,22 +72,32 @@ where
             // The initial point is, by definition, a change point
             self.r.push(1.0);
         } else {
-            self.r.push(std::f64::NAN);
+            self.r.push(0.0);
             let mut r0 = 0.0;
             let mut r_sum = 0.0;
+            let mut r_seen = 0.0;
 
             for i in (0..self.t).rev() {
-                // Evaluate growth probabilites and shift probabilities down
-                // scaling by the hazard function and the predprobs
-                let pp = self
-                    .predictive_prior
-                    .ln_pp(data, &DataOrSuffStat::SuffStat(&self.suff_stats[i]))
-                    .exp();
+                if self.r[i] == 0.0 {
+                    self.r[i + 1] = 0.0;
+                } else {
+                    // Evaluate growth probabilites and shift probabilities down
+                    // scaling by the hazard function and the predprobs
+                    let pp = self
+                        .predictive_prior
+                        .ln_pp(data, &DataOrSuffStat::SuffStat(&self.suff_stats[i]))
+                        .exp();
 
-                let h = (self.hazard)(i);
-                self.r[i + 1] = self.r[i] * pp * (1.0 - h);
-                r0 += self.r[i] * pp * h;
-                r_sum += self.r[i + 1];
+                    r_seen += self.r[i];
+                    let h = (self.hazard)(i);
+                    self.r[i + 1] = self.r[i] * pp * (1.0 - h);
+                    r0 += self.r[i] * pp * h;
+                    r_sum += self.r[i + 1];
+
+                    if 1.0 - r_seen < self.cdf_threshold {
+                        break
+                    }
+                }
             }
             r_sum += r0;
             // Accumulate mass back down to r[0], the probability there was a
@@ -113,9 +118,7 @@ where
         // Update total sequence length
         self.t = self.t + 1;
 
-        // Update MAP location
-        self.map_locations.push(*argmax(&self.r).last().unwrap());
-        self.r.clone()
+        self.r.clone().into()
     }
 }
 
@@ -128,6 +131,25 @@ mod tests {
     use rand::rngs::StdRng;
     use rand::SeedableRng;
     use std::sync::Arc;
+
+    #[test]
+    fn each_vec_is_a_probability_dist() {
+        let mut rng: StdRng = StdRng::seed_from_u64(0xABCD);
+        let data = generators::discontinuous_jump(&mut rng, 0.0, 1.0, 10.0, 5.0, 500, 1000);
+
+        let mut cpd = BOCPD::new(
+            constant_hazard(250.0),
+            &Gaussian::standard(),
+            Arc::new(NormalGamma::new(0.0, 1.0, 1.0, 1.0).unwrap()),
+        );
+
+        let res: Vec<Vec<f64>> = data.iter().map(|d| cpd.step(d)).collect();
+
+        for row in res.iter() {
+            let sum: f64 = row.iter().sum();
+            assert::close(sum, 1.0, 1E-8);
+        }
+    }
 
     #[test]
     fn detect_obvious_switch() {
