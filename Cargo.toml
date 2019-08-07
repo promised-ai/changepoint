@@ -6,6 +6,7 @@ edition = "2018"
 repository = "https://gitlab.com/Redpoll/changepoint/"
 keywords = ["change point detection", "bayesian"]
 categories = ["science"]
+license = "MIT"
 
 [badges]
 gitlab = { repository = "https://gitlab.com/Redpoll/changepoint/" }
