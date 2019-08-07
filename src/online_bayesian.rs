@@ -42,7 +42,7 @@ where
     ///
     /// # Example
     /// ```rust
-    /// use cpd::{BOCPD, constant_hazard};
+    /// use changepoint::{BOCPD, constant_hazard};
     /// use rv::prelude::*;
     /// use std::sync::Arc;
     ///

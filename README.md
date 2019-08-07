@@ -1,9 +1,24 @@
-# Change Point Detection for Rust
+# changepoint - Change point detection for Rust
+Changepoint is a library for doing change point detection for streams of data.
 
+![Gitlab pipeline status (branch)](https://img.shields.io/gitlab/pipeline/Redpoll/changepoint/master)
+![Crates.io](https://img.shields.io/crates/v/changepoint)
+![Crates.io](https://img.shields.io/crates/l/changepoint)
+![docs.rs](https://docs.rs/changepoint/badge.svg)
+
+## Usage
+To use `changepoint`, first add this to your `Cargo.toml`:
+
+```toml
+[dependencies]
+changepoint = "0.1"
+```
+
+## Algorithms
 Includes the following change point detection algorithms:
 * `BOCPD` -- Online Bayesian Change Point Detection [Reference](https://arxiv.org/pdf/0710.3742.pdf).
 
-# Example
+## Example
 ```rust
 //! A demo of the online Bayesian change point detection on
 //! the 3-month Treasury Bill Secondary Market Rate from
@@ -15,7 +30,7 @@ Includes the following change point detection algorithms:
 //! > Market Rate [TB3MS], retrieved from FRED, Federal Reserve Bank of St. Louis;
 //! > https://fred.stlouisfed.org/series/TB3MS, August 5, 2019.
 
-use cpd::{constant_hazard, utils, BOCPD};
+use changepoint::{constant_hazard, utils, BOCPD};
 use rv::prelude::*;
 use std::io;
 use std::sync::Arc;
@@ -61,4 +76,4 @@ fn main() -> io::Result<()> {
 To run this example, from the source root, run `cargo run --example treasury_bill`.
 The partner notebook can be used to generate the following plots: 
 
-![Treasury Bill Plots](./treasury_bill_plots.png)
+![Treasury Bill Plots](./images/treasury_bill_plots.png)

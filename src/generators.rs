@@ -8,7 +8,7 @@ use rv::traits::Rv;
 ///
 /// # Example
 /// ```rust
-/// use cpd::generators::discontinuous_jump;
+/// use changepoint::generators::discontinuous_jump;
 /// use rand::rngs::StdRng;
 /// use rand::SeedableRng;
 /// let mut rng: StdRng = StdRng::seed_from_u64(0x12345);

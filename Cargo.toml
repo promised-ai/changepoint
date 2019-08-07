@@ -1,9 +1,15 @@
 [package]
-name = "cpd"
+name = "changepoint"
 version = "0.0.1"
 authors = ["Mike Schmidt <schmidmt@gmail.com>"]
 edition = "2018"
+repository = "https://gitlab.com/Redpoll/changepoint/"
+keywords = ["change point detection", "bayesian"]
+categories = ["science"]
 
+[badges]
+gitlab = { repository = "https://gitlab.com/Redpoll/changepoint/" }
+maintenance = { status = "actively-developed" }
 
 [dependencies]
 rand = "0.6"
