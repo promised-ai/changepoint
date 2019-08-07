@@ -60,7 +60,7 @@ where
             t: 0,
             r: Vec::new(),
             empty_suffstat: fx.empty_suffstat(),
-            cdf_threshold: 1E-3
+            cdf_threshold: 1E-3,
         }
     }
 
@@ -95,7 +95,7 @@ where
                     r_sum += self.r[i + 1];
 
                     if 1.0 - r_seen < self.cdf_threshold {
-                        break
+                        break;
                     }
                 }
             }
