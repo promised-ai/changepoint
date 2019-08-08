@@ -3,10 +3,12 @@ name = "changepoint"
 version = "0.0.1"
 authors = ["Mike Schmidt <schmidmt@gmail.com>"]
 edition = "2018"
-repository = "https://gitlab.com/Redpoll/changepoint/"
-keywords = ["change point detection", "bayesian"]
+repository = "https://gitlab.com/Redpoll/changepoint"
+keywords = ["Change point detection", "Bayesian", "Machine-Learning", "Statistics"]
 categories = ["science"]
 license = "MIT"
+readme = "README.md"
+description = "Change Point Detection in Rust"
 
 [badges]
 gitlab = { repository = "https://gitlab.com/Redpoll/changepoint/" }
