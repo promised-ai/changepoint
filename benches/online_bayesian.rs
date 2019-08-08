@@ -1,4 +1,4 @@
-use cpd::*;
+use changepoint::*;
 use criterion::*;
 use rv::prelude::*;
 use std::sync::Arc;
