@@ -15,8 +15,8 @@ gitlab = { repository = "https://gitlab.com/Redpoll/changepoint/" }
 maintenance = { status = "actively-developed" }
 
 [dependencies]
-rand = "0.6"
-rv = "0.7.0-rc1"
+rand = "0.7"
+rv = "0.7.2"
 
 [dev-dependencies]
 assert = "0.7"

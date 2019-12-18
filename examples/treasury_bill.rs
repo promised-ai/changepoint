@@ -8,7 +8,7 @@
 //! > Market Rate [TB3MS], retrieved from FRED, Federal Reserve Bank of St. Louis;
 //! > https://fred.stlouisfed.org/series/TB3MS, August 5, 2019.
 
-use changepoint::{constant_hazard, utils, BOCPD};
+use changepoint::{constant_hazard, utils, Bocpd};
 use rv::prelude::*;
 use std::io;
 use std::sync::Arc;
@@ -27,8 +27,8 @@ fn main() -> io::Result<()> {
         })
         .unzip();
 
-    // Create the BOCPD processor
-    let mut cpd = BOCPD::new(
+    // Create the Bocpd processor
+    let mut cpd = Bocpd::new(
         constant_hazard(250.0),
         &Gaussian::standard(),
         Arc::new(NormalGamma::new(0.0, 1.0, 1.0, 1E-5).unwrap()),
