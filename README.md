@@ -33,7 +33,6 @@ Includes the following change point detection algorithms:
 use changepoint::{constant_hazard, utils, BOCPD};
 use rv::prelude::*;
 use std::io;
-use std::sync::Arc;
 
 fn main() -> io::Result<()> {
     // Parse the data from the TB3MS dataset
@@ -52,8 +51,8 @@ fn main() -> io::Result<()> {
     // Create the BOCPD processor
     let mut cpd = BOCPD::new(
         constant_hazard(250.0),
-        &Gaussian::standard(),
-        Arc::new(NormalGamma::new(0.0, 1.0, 1.0, 1E-5).unwrap()),
+        Gaussian::standard(),
+        NormalGamma::new_unchecked(0.0, 1.0, 1.0, 1E-5),
     );
 
     // Feed data into change point detector

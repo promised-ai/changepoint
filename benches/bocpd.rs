@@ -1,7 +1,6 @@
 use changepoint::*;
 use criterion::*;
 use rv::prelude::*;
-use std::sync::Arc;
 
 fn bench_online_bayesian(c: &mut Criterion) {
     let raw_data: &str = include_str!("../resources/spx.csv");
@@ -12,7 +11,7 @@ fn bench_online_bayesian(c: &mut Criterion) {
         .collect();
 
     c.bench(
-        "online bayesian",
+        "BOCPD",
         ParameterizedBenchmark::new(
             "process",
             move |b, nelems| {
@@ -20,8 +19,8 @@ fn bench_online_bayesian(c: &mut Criterion) {
                     // Create the Bocpd processor
                     let mut cpd = Bocpd::new(
                         constant_hazard(250.0),
-                        &Gaussian::standard(),
-                        Arc::new(NormalGamma::new(0.0, 1.0, 1.0, 1E-5).unwrap()),
+                        Gaussian::standard(),
+                        NormalGamma::new_unchecked(0.0, 1.0, 1.0, 1E-5),
                     );
 
                     // Feed data into change point detector
@@ -29,7 +28,7 @@ fn bench_online_bayesian(c: &mut Criterion) {
                         .clone()
                         .iter()
                         .take(*nelems)
-                        .map(|d| cpd.step(d))
+                        .map(|d| cpd.step(d).to_vec())
                         .collect();
                 })
             },
