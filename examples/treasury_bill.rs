@@ -11,7 +11,6 @@
 use changepoint::{constant_hazard, utils, Bocpd};
 use rv::prelude::*;
 use std::io;
-use std::sync::Arc;
 
 fn main() -> io::Result<()> {
     // Parse the data from the TB3MS dataset
@@ -28,22 +27,31 @@ fn main() -> io::Result<()> {
         .unzip();
 
     // Create the Bocpd processor
-    let mut cpd = Bocpd::new(
+    let mut cpd = utils::MostLikelyPathWrapper::new(Bocpd::new(
         constant_hazard(250.0),
-        &Gaussian::standard(),
-        Arc::new(NormalGamma::new(0.0, 1.0, 1.0, 1E-5).unwrap()),
-    );
+        Gaussian::standard(),
+        NormalGamma::new_unchecked(0.0, 1.0, 1.0, 1E-5),
+    ));
 
     // Feed data into change point detector
-    let res: Vec<Vec<f64>> = pct_change.iter().map(|d| cpd.step(d)).collect();
+    let res: Vec<Vec<f64>> = pct_change
+        .iter()
+        .map(|d| cpd.step(d).most_likely_path.clone().into())
+        .collect();
 
     // Determine most likely change points
     let change_points: Vec<usize> =
-        utils::most_likely_breaks(&res, utils::ChangePointDetectionMethod::DropThreshold(0.1));
-    let change_dates: Vec<&str> = change_points.iter().map(|&i| dates[i]).collect();
+        utils::ChangePointDetectionMethod::DropThreshold(0.1).detect(&res);
+    let change_dates: Vec<&str> =
+        change_points.iter().map(|&i| dates[i]).collect();
 
     // Write output for processing my `trasury_bill.ipynb`.
-    utils::write_data_and_r("treasury_bill_output", &pct_change, &res, &change_points)?;
+    utils::write_data_and_r(
+        "treasury_bill_output",
+        &pct_change,
+        &res,
+        &change_points,
+    )?;
 
     println!("Most likely dates of changes = {:#?}", change_dates);
 

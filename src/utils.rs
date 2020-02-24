@@ -1,10 +1,13 @@
 //! General Utilities
 
+use crate::run_length_detector::RunLengthDetector;
 use rv::misc::argmax;
+use std::collections::VecDeque;
 use std::fmt::Display;
 use std::fs::File;
 use std::io;
 use std::io::prelude::*;
+use std::marker::PhantomData;
 
 /// Writes data and R to `{prefix}_data.txt` and `{prefix}_r.txt`, respectively.
 pub fn write_data_and_r<T: Display>(
@@ -51,7 +54,11 @@ pub fn write_data_and_r<T: Display>(
 
 /// Compute the locations in a sequence of distributions where the total
 /// probability from 1 to window is above threshold.
-pub fn window_over_threshold(r: &Vec<Vec<f64>>, window: usize, threshold: f64) -> Vec<usize> {
+pub fn window_over_threshold(
+    r: &Vec<Vec<f64>>,
+    window: usize,
+    threshold: f64,
+) -> Vec<usize> {
     let mut result = Vec::new();
     for (i, rs) in r.iter().enumerate() {
         let window_sum: f64 = rs.iter().skip(1).take(window).sum();
@@ -73,7 +80,7 @@ pub enum ChangePointDetectionMethod {
 }
 
 impl ChangePointDetectionMethod {
-    fn detect(&self, r: Vec<Vec<f64>>) -> Vec<usize> {
+    pub fn detect(&self, r: &Vec<Vec<f64>>) -> Vec<usize> {
         let mut res = Vec::new();
         match self {
             ChangePointDetectionMethod::Reset => {
@@ -108,47 +115,71 @@ impl ChangePointDetectionMethod {
     }
 }
 
-/// Return the points at which the sequence has most likely changed paths.
-/// Algorithm from: https://youtu.be/cas__TaFk9U
-pub fn most_likely_breaks(r: &Vec<Vec<f64>>, method: ChangePointDetectionMethod) -> Vec<usize> {
-    // TODO: This can be made faster
-    let mut log_r: Vec<Vec<f64>> = r
-        .iter()
-        .map(|vs| vs.iter().map(|x| x.ln()).collect())
-        .collect();
-
-    // Accumulate probabilities
-    for i in 0..(log_r.len() - 1) {
-        let mut max = std::f64::NEG_INFINITY;
-        for j in 0..(log_r[i].len()) {
-            log_r[i + 1][j + 1] += log_r[i][j];
-            max = max.max(log_r[i][j]);
-        }
-        log_r[i + 1][0] += max;
-    }
-
-    // Determine where step backward, instead of forwards, occurs.
-    method.detect(log_r)
+/// Return value from MostLikelyPathWrapper's step function
+pub struct MostLikelyPathResult<'a> {
+    /// Most likely path histories
+    pub most_likely_path: &'a VecDeque<f64>,
+    /// Most recent run-length probabilities
+    pub run_length_probs: &'a [f64],
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+impl<'a> MostLikelyPathResult<'a> {
+    /// Create a new MostLikelyPathResult
+    pub fn new(
+        most_likely_path: &'a VecDeque<f64>,
+        run_length_probs: &'a [f64],
+    ) -> Self {
+        Self {
+            most_likely_path,
+            run_length_probs,
+        }
+    }
+}
 
-    #[test]
-    fn most_likely_breaks_explicite() {
-        let data: Vec<Vec<f64>> = vec![
-            vec![1.0],                               // 0
-            vec![0.1, 0.9],                          // 1
-            vec![0.9, 0.0, 0.1],                     // 2
-            vec![0.1, 0.7, 0.0, 0.2],                // 3
-            vec![0.2, 0.2, 0.3, 0.0, 0.3],           // 4
-            vec![0.1, 0.4, 0.1, 0.1, 0.0, 0.3],      // 5
-            vec![0.3, 0.0, 0.0, 0.2, 0.0, 0.0, 0.5], //6
-        ];
+/// Wrap a run-length detector to keep track of most likely breakpoints
+pub struct MostLikelyPathWrapper<T, RL>
+where
+    RL: RunLengthDetector<T>,
+{
+    detector: RL,
+    hist: VecDeque<f64>,
+    _phantom_t: PhantomData<T>,
+}
 
-        let breaks = most_likely_breaks(&data.to_vec(), ChangePointDetectionMethod::NonIncremental);
-        assert_eq!(breaks, vec![2, 5, 6]);
+impl<T, RL> MostLikelyPathWrapper<T, RL>
+where
+    RL: RunLengthDetector<T>,
+{
+    /// Create a new MostLikelyPathWrapper around a detector
+    pub fn new(detector: RL) -> Self {
+        Self {
+            detector,
+            hist: VecDeque::new(),
+            _phantom_t: PhantomData,
+        }
     }
 
+    /// Step the underlying detector and return accumulated log probabilities
+    ///
+    /// Algorithm from: https://youtu.be/cas__TaFk9U
+    pub fn step(&mut self, value: &T) -> MostLikelyPathResult {
+        let run_length_probs = self.detector.step(value);
+        let log_probs: Vec<f64> =
+            run_length_probs.iter().map(|p| p.ln()).collect();
+        let max_hist: f64 = self
+            .hist
+            .iter()
+            .max_by(|a, b| a.partial_cmp(b).unwrap())
+            .unwrap_or(&0.0)
+            .clone();
+
+        self.hist.push_front(max_hist);
+
+        for (i, lp) in log_probs.iter().enumerate() {
+            self.hist[i] += lp;
+        }
+
+        self.hist.truncate(log_probs.len());
+        MostLikelyPathResult::new(&self.hist, run_length_probs)
+    }
 }
