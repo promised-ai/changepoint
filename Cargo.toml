@@ -1,6 +1,6 @@
 [package]
 name = "changepoint"
-version = "0.3.0"
+version = "0.3.1"
 authors = ["Mike Schmidt <schmidmt@gmail.com>"]
 edition = "2018"
 repository = "https://gitlab.com/Redpoll/changepoint"
@@ -14,9 +14,14 @@ description = "Change Point Detection in Rust"
 gitlab = { repository = "https://gitlab.com/Redpoll/changepoint/" }
 maintenance = { status = "actively-developed" }
 
+[features]
+serde_support = ["serde", "serde_derive", "rv/serde_support"]
+
 [dependencies]
 rand = "0.7"
 rv = "0.8"
+serde = {version = "1", optional = true, features=["derive"]}
+serde_derive = {version = "1", optional = true}
 
 [dev-dependencies]
 assert = "0.7"
