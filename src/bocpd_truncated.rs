@@ -168,6 +168,7 @@ mod tests {
     use crate::constant_hazard;
     use crate::generators;
     use crate::utils::*;
+    use crate::MapPathDetector;
     use rand::rngs::StdRng;
     use rand::SeedableRng;
 
@@ -208,7 +209,7 @@ mod tests {
 
         let res: Vec<Vec<f64>> = data
             .iter()
-            .map(|d| cpd.step(d).most_likely_path.clone().into())
+            .map(|d| cpd.step(d).map_path_probs.clone().into())
             .collect();
         let change_points =
             ChangePointDetectionMethod::NonIncremental.detect(&res);
@@ -235,7 +236,7 @@ mod tests {
 
         let res: Vec<Vec<f64>> = data
             .iter()
-            .map(|d| cpd.step(d).most_likely_path.clone().into())
+            .map(|d| cpd.step(d).map_path_probs.clone().into())
             .collect();
         let change_points =
             ChangePointDetectionMethod::DropThreshold(0.5).detect(&res);
@@ -273,7 +274,7 @@ mod tests {
 
         let res: Vec<Vec<f64>> = data
             .iter()
-            .map(|d| cpd.step(d).most_likely_path.clone().into())
+            .map(|d| cpd.step(d).map_path_probs.clone().into())
             .collect();
         let change_points =
             ChangePointDetectionMethod::DropThreshold(0.1).detect(&res);

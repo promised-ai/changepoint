@@ -1,6 +1,8 @@
 //! General Utilities
 
-use crate::run_length_detector::RunLengthDetector;
+use crate::run_length_detector::{
+    MapPathDetector, MapPathResult, RunLengthDetector,
+};
 use rv::misc::argmax;
 use std::collections::VecDeque;
 use std::fmt::Display;
@@ -8,6 +10,9 @@ use std::fs::File;
 use std::io;
 use std::io::prelude::*;
 use std::marker::PhantomData;
+
+#[cfg(feature = "serde_support")]
+use serde::{Deserialize, Serialize};
 
 /// Writes data and R to `{prefix}_data.txt` and `{prefix}_r.txt`, respectively.
 pub fn write_data_and_r<T: Display>(
@@ -70,6 +75,8 @@ pub fn window_over_threshold(
 }
 
 /// Alternative methods for detecting change points
+#[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
 pub enum ChangePointDetectionMethod {
     /// Detect when the most likely path is reset to zero.
     Reset,
@@ -115,28 +122,9 @@ impl ChangePointDetectionMethod {
     }
 }
 
-/// Return value from MostLikelyPathWrapper's step function
-pub struct MostLikelyPathResult<'a> {
-    /// Most likely path histories
-    pub most_likely_path: &'a VecDeque<f64>,
-    /// Most recent run-length probabilities
-    pub run_length_probs: &'a [f64],
-}
-
-impl<'a> MostLikelyPathResult<'a> {
-    /// Create a new MostLikelyPathResult
-    pub fn new(
-        most_likely_path: &'a VecDeque<f64>,
-        run_length_probs: &'a [f64],
-    ) -> Self {
-        Self {
-            most_likely_path,
-            run_length_probs,
-        }
-    }
-}
-
 /// Wrap a run-length detector to keep track of most likely breakpoints
+#[derive(Clone)]
+#[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
 pub struct MostLikelyPathWrapper<T, RL>
 where
     RL: RunLengthDetector<T>,
@@ -146,26 +134,18 @@ where
     _phantom_t: PhantomData<T>,
 }
 
-impl<T, RL> MostLikelyPathWrapper<T, RL>
+impl<T, RL> MapPathDetector<T> for MostLikelyPathWrapper<T, RL>
 where
     RL: RunLengthDetector<T>,
 {
-    /// Create a new MostLikelyPathWrapper around a detector
-    pub fn new(detector: RL) -> Self {
-        Self {
-            detector,
-            hist: VecDeque::new(),
-            _phantom_t: PhantomData,
-        }
-    }
-
     /// Step the underlying detector and return accumulated log probabilities
     ///
     /// Algorithm from: https://youtu.be/cas__TaFk9U
-    pub fn step(&mut self, value: &T) -> MostLikelyPathResult {
+    fn step(&mut self, value: &T) -> MapPathResult {
         let run_length_probs = self.detector.step(value);
         let log_probs: Vec<f64> =
             run_length_probs.iter().map(|p| p.ln()).collect();
+
         let max_hist: f64 = self
             .hist
             .iter()
@@ -180,6 +160,97 @@ where
         }
 
         self.hist.truncate(log_probs.len());
-        MostLikelyPathResult::new(&self.hist, run_length_probs)
+        MapPathResult {
+            map_path_probs: &self.hist,
+            runlength_probs: run_length_probs,
+        }
+    }
+}
+
+impl<T, RL> MostLikelyPathWrapper<T, RL>
+where
+    RL: RunLengthDetector<T>,
+{
+    /// Create a new MostLikelyPathWrapper around a detector
+    pub fn new(detector: RL) -> Self {
+        Self {
+            detector,
+            hist: VecDeque::new(),
+            _phantom_t: PhantomData,
+        }
+    }
+}
+
+/// Track the Maximum aposterori run-length for deviations
+///
+#[derive(Clone, Debug, Default, PartialEq)]
+#[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
+pub struct MapTracker {
+    last_map: Option<usize>,
+}
+
+impl MapTracker {
+    /// Create a new MapTracker
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Monitor a new run length or MAP path sequence of probabilities for changes
+    pub fn track(&mut self, ps: &[f64]) -> MapChange {
+        let this_map: usize = ps
+            .iter()
+            .enumerate()
+            .max_by(|(_, a), (_, b)| {
+                a.partial_cmp(b).expect("NaNs are not supported here")
+            })
+            .unwrap()
+            .0;
+        match self.last_map.replace(this_map) {
+            None => MapChange::Initial(this_map),
+            Some(last) => {
+                if last + 1 == this_map {
+                    MapChange::Incremental(this_map)
+                } else {
+                    MapChange::Interrupted(this_map)
+                }
+            }
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
+pub enum MapChange {
+    /// The first type of change from an initialization
+    Initial(usize),
+    /// MAP increased by one
+    Incremental(usize),
+    /// MAP changed by a value other than +1
+    Interrupted(usize),
+}
+
+impl MapChange {
+    pub fn location(&self) -> usize {
+        match self {
+            MapChange::Initial(s) => *s,
+            MapChange::Incremental(s) => *s,
+            MapChange::Interrupted(s) => *s,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn map_change_simple() {
+        let mut mc = MapTracker::new();
+        assert_eq!(mc.track(&vec![1.0]), MapChange::Initial(0));
+        assert_eq!(mc.track(&vec![0.25, 0.75]), MapChange::Incremental(1));
+        assert_eq!(
+            mc.track(&vec![0.25, 0.50, 0.25]),
+            MapChange::Interrupted(1)
+        );
     }
 }

@@ -8,7 +8,7 @@
 //! > Market Rate [TB3MS], retrieved from FRED, Federal Reserve Bank of St. Louis;
 //! > https://fred.stlouisfed.org/series/TB3MS, August 5, 2019.
 
-use changepoint::{constant_hazard, utils, Bocpd};
+use changepoint::{constant_hazard, utils, Bocpd, MapPathDetector};
 use rv::prelude::*;
 use std::io;
 
@@ -36,7 +36,7 @@ fn main() -> io::Result<()> {
     // Feed data into change point detector
     let res: Vec<Vec<f64>> = pct_change
         .iter()
-        .map(|d| cpd.step(d).most_likely_path.clone().into())
+        .map(|d| cpd.step(d).map_path_probs.clone().into())
         .collect();
 
     // Determine most likely change points
