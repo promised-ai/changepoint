@@ -39,7 +39,7 @@ pub fn write_data_and_r<T: Display>(
                 write!(r_f, "{} ", rs[i])?;
             }
             for _ in rs.len()..t {
-                write!(r_f, "{} ", 0.0)?;
+                write!(r_f, "{} ", std::f64::NEG_INFINITY)?;
             }
             writeln!(r_f, "")?;
             Ok(())

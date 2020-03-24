@@ -1,6 +1,10 @@
 //! This library provides Change Point Detection (CPD) tools such as
 //!  * Online Bayesian CPD as `Bocpd`
 
+// Test the README
+use doc_comment::doctest;
+doctest!("../README.md");
+
 mod bocpd;
 pub use bocpd::*;
 

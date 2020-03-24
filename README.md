@@ -1,10 +1,10 @@
 # changepoint - Change point detection for Rust
 Changepoint is a library for doing change point detection for streams of data.
 
-![Gitlab pipeline status (branch)](https://img.shields.io/gitlab/pipeline/Redpoll/changepoint/master)
-![Crates.io](https://img.shields.io/crates/v/changepoint)
-![Crates.io](https://img.shields.io/crates/l/changepoint)
-![docs.rs](https://docs.rs/changepoint/badge.svg)
+[![Gitlab pipeline status (branch)](https://img.shields.io/gitlab/pipeline/Redpoll/changepoint/master)](https://gitlab.com/Redpoll/changepoint/pipelines)
+[![Crates.io](https://img.shields.io/crates/v/changepoint)](https://crates.io/crates/changepoint)
+[![Crates.io](https://img.shields.io/crates/l/changepoint)](https://gitlab.com/Redpoll/changepoint/-/blob/master/LICENSE)
+[![docs.rs](https://docs.rs/changepoint/badge.svg)](https://docs.rs/changepoint)
 
 ## Usage
 To use `changepoint`, first add this to your `Cargo.toml`:
@@ -30,13 +30,13 @@ Includes the following change point detection algorithms:
 //! > Market Rate [TB3MS], retrieved from FRED, Federal Reserve Bank of St. Louis;
 //! > https://fred.stlouisfed.org/series/TB3MS, August 5, 2019.
 
-use changepoint::{constant_hazard, utils, BOCPD};
+use changepoint::{constant_hazard, utils, BocpdTruncated, MapPathDetector};
 use rv::prelude::*;
 use std::io;
 
 fn main() -> io::Result<()> {
     // Parse the data from the TB3MS dataset
-    let data: &str = include_str!("./TB3MS.csv");
+    let data: &str = include_str!("./resources/TB3MS.csv");
     let (dates, pct_change): (Vec<&str>, Vec<f64>) = data
         .lines()
         .skip(1)
@@ -48,23 +48,32 @@ fn main() -> io::Result<()> {
         })
         .unzip();
 
-    // Create the BOCPD processor
-    let mut cpd = BOCPD::new(
+    // Create the Bocpd processor
+    let mut cpd = utils::MostLikelyPathWrapper::new(BocpdTruncated::new(
         constant_hazard(250.0),
         Gaussian::standard(),
         NormalGamma::new_unchecked(0.0, 1.0, 1.0, 1E-5),
-    );
+    ));
 
     // Feed data into change point detector
-    let res: Vec<Vec<f64>> = pct_change.iter().map(|d| cpd.step(d)).collect();
+    let res: Vec<Vec<f64>> = pct_change
+        .iter()
+        .map(|d| cpd.step(d).map_path_probs.clone().into())
+        .collect();
 
     // Determine most likely change points
     let change_points: Vec<usize> =
-        utils::most_likely_breaks(&res, utils::ChangePointDetectionMethod::DropThreshold(0.1));
-    let change_dates: Vec<&str> = change_points.iter().map(|&i| dates[i]).collect();
+        utils::ChangePointDetectionMethod::DropThreshold(0.1).detect(&res);
+    let change_dates: Vec<&str> =
+        change_points.iter().map(|&i| dates[i]).collect();
 
     // Write output for processing my `trasury_bill.ipynb`.
-    utils::write_data_and_r("treasury_bill_output", &pct_change, &res, &change_points)?;
+    utils::write_data_and_r(
+        "treasury_bill_output",
+        &pct_change,
+        &res,
+        &change_points,
+    )?;
 
     println!("Most likely dates of changes = {:#?}", change_dates);
 

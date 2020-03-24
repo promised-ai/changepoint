@@ -3,25 +3,12 @@ variables:
     RUST_BACKTRACE: 1
 
 before_script:
-    - rustup component add rustfmt-preview
-
-test:cargo-nightly:
-    image: "rustlang/rust:nightly"
-    before_script:
-        - rustup install nightly --no-self-update
-        - rustup override set nightly
-        - rustup component add rustfmt --toolchain nightly
-    script:
-        - rustc --version && cargo --version
-        - cargo fmt --all -- --check
-        - cargo build
-        - time cargo test --jobs 1
-        - cargo bench -- --test
+    - rustup component add rustfmt
 
 test:cargo-stable:
-    image: "rust:1.41"
+    image: "rust:1.42"
     script:
         - rustc --version && cargo --version
-        - cargo build
-        - time cargo test --jobs 1
+        - cargo build --all --all-features
+        - time cargo test --jobs 1 --all-features
         - cargo bench -- --test

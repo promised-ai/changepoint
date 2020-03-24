@@ -247,16 +247,15 @@ mod tests {
         assert_eq!(change_points, vec![50, 107]);
     }
 
-    /// This test checks the Bocpd algorithm against S&P/Case-Schiller 20-City
-    /// Composite Home Price Index.
+    /// This test checks for change points with 3-month treasury bill market data
     ///
     /// # Data Source
-    /// > S&P Dow Jones Indices LLC, S&P/Case-Shiller 20-City Composite Home Price Index
-    /// > [SPCS20RSA], retrieved from FRED, Federal Reserve Bank of St. Louis;
-    /// > https://fred.stlouisfed.org/series/SPCS20RSA, August 5, 2019.
+    /// > Board of Governors of the Federal Reserve System (US), 3-Month Treasury Bill: Secondary
+    /// > Market Rate [TB3MS], retrieved from FRED, Federal Reserve Bank of St. Louis;
+    /// > https://fred.stlouisfed.org/series/TB3MS, March 24, 2020. 
     #[test]
-    fn housing_change() {
-        let raw_data: &str = include_str!("../resources/SPCS20RSA.csv");
+    fn treasury_changes() {
+        let raw_data: &str = include_str!("../resources/TB3MS.csv");
         let data: Vec<f64> = raw_data
             .lines()
             .skip(1)
@@ -274,13 +273,16 @@ mod tests {
 
         let res: Vec<Vec<f64>> = data
             .iter()
-            .map(|d| cpd.step(d).map_path_probs.clone().into())
+            .zip(data.iter().skip(1))
+            .map(|(a, b)| (b - a) / a)
+            .map(|d| cpd.step(&d).map_path_probs.clone().into())
             .collect();
         let change_points =
             ChangePointDetectionMethod::DropThreshold(0.1).detect(&res);
-        // Write output
-        // utils::write_data_and_r("housing_change", &data, &res, &change_points).unwrap();
 
-        assert_eq!(change_points, vec![81, 156]);
+        // Write output
+        // utils::write_data_and_r("treasury_change", &data, &res, &change_points).unwrap();
+
+        assert_eq!(change_points, vec![135, 295, 897, 981, 1010]);
     }
 }

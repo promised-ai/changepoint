@@ -1,6 +1,7 @@
 use changepoint::*;
 use criterion::*;
 use rv::prelude::*;
+use std::convert::TryInto;
 
 fn bench_online_bayesian(c: &mut Criterion) {
     let raw_data: &str = include_str!("../resources/spx.csv");
@@ -34,7 +35,7 @@ fn bench_online_bayesian(c: &mut Criterion) {
             },
             (0..500).step_by(100),
         )
-        .throughput(|&nelems| Throughput::Elements(nelems as u32)),
+        .throughput(|&nelems| Throughput::Elements(nelems.try_into().unwrap())),
     );
 }
 
