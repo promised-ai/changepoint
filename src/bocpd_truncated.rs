@@ -8,7 +8,7 @@ use crate::run_length_detector::RunLengthDetector;
 use rv::prelude::*;
 use std::collections::VecDeque;
 
-#[cfg(feature = "serde_support")]
+#[cfg(feature = "serde1")]
 use serde::{Deserialize, Serialize};
 
 /// Online Bayesian Change Point Detection with a truncated tail
@@ -16,7 +16,7 @@ use serde::{Deserialize, Serialize};
 /// The truncation takes place after run length probabilites are computed.
 /// The truncation point is chosen based on the most recent point from which
 /// all successive mass is below the given threshold.
-#[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde1", derive(Serialize, Deserialize))]
 pub struct BocpdTruncated<X, H, Fx, Pr>
 where
     H: Fn(usize) -> f64,

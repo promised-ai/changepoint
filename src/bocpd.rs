@@ -8,11 +8,11 @@ use crate::run_length_detector::RunLengthDetector;
 use rv::prelude::*;
 use std::collections::VecDeque;
 
-#[cfg(feature = "serde_support")]
+#[cfg(feature = "serde1")]
 use serde::{Deserialize, Serialize};
 
 /// Online Bayesian Change Point Detection state container
-#[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde1", derive(Serialize, Deserialize))]
 pub struct Bocpd<X, H, Fx, Pr>
 where
     H: Fn(usize) -> f64,

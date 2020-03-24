@@ -11,7 +11,7 @@ use std::io;
 use std::io::prelude::*;
 use std::marker::PhantomData;
 
-#[cfg(feature = "serde_support")]
+#[cfg(feature = "serde1")]
 use serde::{Deserialize, Serialize};
 
 /// Writes data and R to `{prefix}_data.txt` and `{prefix}_r.txt`, respectively.
@@ -76,7 +76,7 @@ pub fn window_over_threshold(
 
 /// Alternative methods for detecting change points
 #[derive(Clone, Debug, PartialEq)]
-#[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde1", derive(Serialize, Deserialize))]
 pub enum ChangePointDetectionMethod {
     /// Detect when the most likely path is reset to zero.
     Reset,
@@ -124,7 +124,7 @@ impl ChangePointDetectionMethod {
 
 /// Wrap a run-length detector to keep track of most likely breakpoints
 #[derive(Clone)]
-#[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde1", derive(Serialize, Deserialize))]
 pub struct MostLikelyPathWrapper<T, RL>
 where
     RL: RunLengthDetector<T>,
@@ -184,7 +184,7 @@ where
 /// Track the Maximum aposterori run-length for deviations
 ///
 #[derive(Clone, Debug, Default, PartialEq)]
-#[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde1", derive(Serialize, Deserialize))]
 pub struct MapTracker {
     last_map: Option<usize>,
 }
@@ -219,7 +219,7 @@ impl MapTracker {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-#[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde1", derive(Serialize, Deserialize))]
 pub enum MapChange {
     /// The first type of change from an initialization
     Initial(usize),
