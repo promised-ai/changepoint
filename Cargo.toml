@@ -1,6 +1,6 @@
 [package]
 name = "changepoint"
-version = "0.5.1"
+version = "0.5.2"
 authors = ["Mike Schmidt <schmidmt@gmail.com>"]
 edition = "2018"
 repository = "https://gitlab.com/Redpoll/changepoint"
