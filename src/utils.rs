@@ -15,11 +15,12 @@ use std::marker::PhantomData;
 use serde::{Deserialize, Serialize};
 
 /// Writes data and R to `{prefix}_data.txt` and `{prefix}_r.txt`, respectively.
+#[allow(clippy::ptr_arg)]
 pub fn write_data_and_r<T: Display>(
     prefix: &str,
     data: &[T],
     r: &Vec<Vec<f64>>,
-    change_points: &Vec<usize>,
+    change_points: &[usize],
 ) -> io::Result<()> {
     // Write Data
     let data_file_path = format!("{}_data.txt", prefix);
@@ -35,13 +36,13 @@ pub fn write_data_and_r<T: Display>(
     let t = r.len();
     r.iter()
         .map(|rs| {
-            for i in 0..rs.len() {
-                write!(r_f, "{} ", rs[i])?;
+            for r in rs {
+                write!(r_f, "{} ", r)?;
             }
             for _ in rs.len()..t {
                 write!(r_f, "{} ", std::f64::NEG_INFINITY)?;
             }
-            writeln!(r_f, "")?;
+            writeln!(r_f)?;
             Ok(())
         })
         .collect::<io::Result<()>>()?;
@@ -59,6 +60,7 @@ pub fn write_data_and_r<T: Display>(
 
 /// Compute the locations in a sequence of distributions where the total
 /// probability from 1 to window is above threshold.
+#[allow(clippy::ptr_arg)]
 pub fn window_over_threshold(
     r: &Vec<Vec<f64>>,
     window: usize,
@@ -87,6 +89,8 @@ pub enum ChangePointDetectionMethod {
 }
 
 impl ChangePointDetectionMethod {
+    /// Detect changepoints with the given method
+    #[allow(clippy::needless_range_loop, clippy::ptr_arg)]
     pub fn detect(&self, r: &Vec<Vec<f64>>) -> Vec<usize> {
         let mut res = Vec::new();
         match self {
@@ -150,8 +154,8 @@ where
             .hist
             .iter()
             .max_by(|a, b| a.partial_cmp(b).unwrap())
-            .unwrap_or(&0.0)
-            .clone();
+            .copied()
+            .unwrap_or(0.0);
 
         self.hist.push_front(max_hist);
 
@@ -164,6 +168,10 @@ where
             map_path_probs: &self.hist,
             runlength_probs: run_length_probs,
         }
+    }
+
+    fn reset(&mut self) {
+        self.detector.reset();
     }
 }
 
@@ -216,8 +224,14 @@ impl MapTracker {
             }
         }
     }
+
+    /// Reset the tracker
+    pub fn reset(&mut self) {
+        self.last_map = None;
+    }
 }
 
+/// A change in the MAP run-length
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serde1", derive(Serialize, Deserialize))]
 pub enum MapChange {
@@ -230,6 +244,7 @@ pub enum MapChange {
 }
 
 impl MapChange {
+    /// Location of the change reported
     pub fn location(&self) -> usize {
         match self {
             MapChange::Initial(s) => *s,

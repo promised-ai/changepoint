@@ -75,6 +75,12 @@ where
     Pr: ConjugatePrior<X, Fx>,
     Fx::Stat: Clone,
 {
+    fn reset(&mut self) {
+        self.suff_stats.clear();
+        self.t = 0;
+        self.r.clear();
+    }
+
     /// Update the model with a new datum and return the distribution of run lengths.
     fn step(&mut self, data: &X) -> &[f64] {
         self.suff_stats.push_front(self.empty_suffstat.clone());
@@ -130,7 +136,7 @@ where
             .for_each(|stat| stat.observe(data));
 
         // Update total sequence length
-        self.t = self.t + 1;
+        self.t += 1;
 
         &self.r
     }
@@ -223,7 +229,7 @@ mod tests {
     /// # Data Source
     /// > Board of Governors of the Federal Reserve System (US), 3-Month Treasury Bill: Secondary
     /// > Market Rate [TB3MS], retrieved from FRED, Federal Reserve Bank of St. Louis;
-    /// > https://fred.stlouisfed.org/series/TB3MS, March 24, 2020. 
+    /// > https://fred.stlouisfed.org/series/TB3MS, March 24, 2020.
     #[test]
     fn treasury_changes() {
         let raw_data: &str = include_str!("../resources/TB3MS.csv");

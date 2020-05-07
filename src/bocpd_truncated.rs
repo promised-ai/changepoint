@@ -160,6 +160,11 @@ where
 
         &self.r
     }
+
+    fn reset(&mut self) {
+        self.suff_stats.clear();
+        self.r.clear();
+    }
 }
 
 #[cfg(test)]
@@ -252,7 +257,7 @@ mod tests {
     /// # Data Source
     /// > Board of Governors of the Federal Reserve System (US), 3-Month Treasury Bill: Secondary
     /// > Market Rate [TB3MS], retrieved from FRED, Federal Reserve Bank of St. Louis;
-    /// > https://fred.stlouisfed.org/series/TB3MS, March 24, 2020. 
+    /// > https://fred.stlouisfed.org/series/TB3MS, March 24, 2020.
     #[test]
     fn treasury_changes() {
         let raw_data: &str = include_str!("../resources/TB3MS.csv");
