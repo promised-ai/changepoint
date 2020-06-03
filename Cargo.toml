@@ -1,6 +1,6 @@
 [package]
 name = "changepoint"
-version = "0.5.2"
+version = "0.6.0"
 authors = ["Mike Schmidt <schmidmt@gmail.com>"]
 edition = "2018"
 repository = "https://gitlab.com/Redpoll/changepoint"
@@ -19,7 +19,7 @@ serde1 = ["serde", "serde_derive", "rv/serde1"]
 
 [dependencies]
 rand = "0.7"
-rv = "0.9"
+rv = "0.10"
 serde = {version = "1", optional = true, features=["derive"]}
 serde_derive = {version = "1", optional = true}
 doc-comment = "0.3"
