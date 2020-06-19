@@ -127,7 +127,7 @@ impl ChangePointDetectionMethod {
 }
 
 /// Wrap a run-length detector to keep track of most likely breakpoints
-#[derive(Clone)]
+#[derive(Clone, Default)]
 #[cfg_attr(feature = "serde1", derive(Serialize, Deserialize))]
 pub struct MostLikelyPathWrapper<T, RL>
 where

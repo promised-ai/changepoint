@@ -13,14 +13,13 @@ use serde::{Deserialize, Serialize};
 
 /// Online Bayesian Change Point Detection state container
 #[cfg_attr(feature = "serde1", derive(Serialize, Deserialize))]
-pub struct Bocpd<X, H, Fx, Pr>
+pub struct Bocpd<X, Fx, Pr>
 where
-    H: Fn(usize) -> f64,
     Fx: Rv<X> + HasSuffStat<X>,
     Pr: ConjugatePrior<X, Fx>,
     Fx::Stat: Clone,
 {
-    hazard: H,
+    hazard: f64,
     predictive_prior: Pr,
     suff_stats: VecDeque<Fx::Stat>,
     t: usize,
@@ -29,9 +28,8 @@ where
     cdf_threshold: f64,
 }
 
-impl<X, H, Fx, Pr> Bocpd<X, H, Fx, Pr>
+impl<X, Fx, Pr> Bocpd<X, Fx, Pr>
 where
-    H: Fn(usize) -> f64,
     Fx: Rv<X> + HasSuffStat<X>,
     Pr: ConjugatePrior<X, Fx>,
     Fx::Stat: Clone,
@@ -45,19 +43,19 @@ where
     ///
     /// # Example
     /// ```rust
-    /// use changepoint::{Bocpd, constant_hazard};
+    /// use changepoint::Bocpd;
     /// use rv::prelude::*;
     /// use std::sync::Arc;
     ///
     /// let cpd = Bocpd::new(
-    ///     constant_hazard(250.0),
+    ///     250.0,
     ///     Gaussian::standard(),
     ///     NormalGamma::new_unchecked(0.0, 1.0, 1.0, 1.0),
     /// );
     /// ```
-    pub fn new(hazard: H, fx: Fx, predictive_prior: Pr) -> Self {
+    pub fn new(hazard_lambda: f64, fx: Fx, predictive_prior: Pr) -> Self {
         Self {
-            hazard,
+            hazard: hazard_lambda.recip(),
             predictive_prior,
             suff_stats: VecDeque::new(),
             t: 0,
@@ -66,11 +64,16 @@ where
             cdf_threshold: 1E-3,
         }
     }
+
+    /// Reset the introspector and replace the predictive prior
+    pub fn reset_with_prior(&mut self, predictive_prior: Pr) {
+        self.predictive_prior = predictive_prior;
+        self.reset();
+    }
 }
 
-impl<X, H, Fx, Pr> RunLengthDetector<X> for Bocpd<X, H, Fx, Pr>
+impl<X, Fx, Pr> RunLengthDetector<X> for Bocpd<X, Fx, Pr>
 where
-    H: Fn(usize) -> f64,
     Fx: Rv<X> + HasSuffStat<X>,
     Pr: ConjugatePrior<X, Fx>,
     Fx::Stat: Clone,
@@ -109,7 +112,7 @@ where
                         .exp();
 
                     r_seen += self.r[i];
-                    let h = (self.hazard)(i);
+                    let h = self.hazard;
                     self.r[i + 1] = self.r[i] * pp * (1.0 - h);
                     r0 += self.r[i] * pp * h;
                     r_sum += self.r[i + 1];
@@ -146,9 +149,7 @@ where
 mod tests {
     use super::*;
     use crate::utils::{ChangePointDetectionMethod, MostLikelyPathWrapper};
-    use crate::{
-        constant_hazard, generators, MapPathDetector, RunLengthDetector,
-    };
+    use crate::{generators, MapPathDetector, RunLengthDetector};
     use rand::rngs::StdRng;
     use rand::SeedableRng;
 
@@ -160,7 +161,7 @@ mod tests {
         );
 
         let mut cpd = Bocpd::new(
-            constant_hazard(250.0),
+            250.0,
             Gaussian::standard(),
             NormalGamma::new(0.0, 1.0, 1.0, 1.0).unwrap(),
         );
@@ -182,7 +183,7 @@ mod tests {
         );
 
         let mut cpd = MostLikelyPathWrapper::new(Bocpd::new(
-            constant_hazard(250.0),
+            250.0,
             Gaussian::standard(),
             NormalGamma::new_unchecked(0.0, 1.0, 1.0, 1.0),
         ));
@@ -206,7 +207,7 @@ mod tests {
         let data = generators::coal_mining_incidents();
 
         let mut cpd = MostLikelyPathWrapper::new(Bocpd::new(
-            constant_hazard(100.0),
+            100.0,
             Poisson::new_unchecked(123.0),
             Gamma::new_unchecked(1.0, 1.0),
         ));
@@ -243,7 +244,7 @@ mod tests {
             .collect();
 
         let mut cpd = MostLikelyPathWrapper::new(Bocpd::new(
-            constant_hazard(250.0),
+            250.0,
             Gaussian::standard(),
             NormalGamma::new_unchecked(0.0, 1.0, 1.0, 1E-5),
         ));

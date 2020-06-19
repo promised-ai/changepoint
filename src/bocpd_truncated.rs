@@ -17,14 +17,13 @@ use serde::{Deserialize, Serialize};
 /// The truncation point is chosen based on the most recent point from which
 /// all successive mass is below the given threshold.
 #[cfg_attr(feature = "serde1", derive(Serialize, Deserialize))]
-pub struct BocpdTruncated<X, H, Fx, Pr>
+pub struct BocpdTruncated<X, Fx, Pr>
 where
-    H: Fn(usize) -> f64,
     Fx: Rv<X> + HasSuffStat<X>,
     Pr: ConjugatePrior<X, Fx>,
     Fx::Stat: Clone,
 {
-    hazard: H,
+    hazard: f64,
     predictive_prior: Pr,
     suff_stats: VecDeque<Fx::Stat>,
     r: Vec<f64>,
@@ -33,9 +32,8 @@ where
     cutoff_threadhold: f64,
 }
 
-impl<X, H, Fx, Pr> BocpdTruncated<X, H, Fx, Pr>
+impl<X, Fx, Pr> BocpdTruncated<X, Fx, Pr>
 where
-    H: Fn(usize) -> f64,
     Fx: Rv<X> + HasSuffStat<X>,
     Pr: ConjugatePrior<X, Fx>,
     Fx::Stat: Clone,
@@ -43,25 +41,25 @@ where
     /// Create a new Bocpd analyzer
     ///
     /// # Parameters
-    /// * `hazard` - The hazard function for `P_{gap}`.
+    /// * `hazard` - The hazard function for `P_{gap} = 1/hazard`.
     /// * `fx` - Predictive distribution. Used for generating an empty `SuffStat`.
     /// * `predictive_prior` - Prior for the predictive distribution.
     ///
     /// # Example
     /// ```rust
-    /// use changepoint::{BocpdTruncated, constant_hazard};
+    /// use changepoint::BocpdTruncated;
     /// use rv::prelude::*;
     /// use std::sync::Arc;
     ///
     /// let cpd = BocpdTruncated::new(
-    ///     constant_hazard(250.0),
+    ///     250.0,
     ///     Gaussian::standard(),
     ///     NormalGamma::new_unchecked(0.0, 1.0, 1.0, 1.0),
     /// );
     /// ```
-    pub fn new(hazard: H, fx: Fx, predictive_prior: Pr) -> Self {
+    pub fn new(hazard_lambda: f64, fx: Fx, predictive_prior: Pr) -> Self {
         Self {
-            hazard,
+            hazard: hazard_lambda.recip(),
             predictive_prior,
             suff_stats: VecDeque::new(),
             r: Vec::new(),
@@ -78,10 +76,16 @@ where
             ..self
         }
     }
+
+    /// Reset the introspector and replace the predictive prior
+    pub fn reset_with_prior(&mut self, predictive_prior: Pr) {
+        self.predictive_prior = predictive_prior;
+        self.reset();
+    }
 }
-impl<X, H, Fx, Pr> RunLengthDetector<X> for BocpdTruncated<X, H, Fx, Pr>
+
+impl<X, Fx, Pr> RunLengthDetector<X> for BocpdTruncated<X, Fx, Pr>
 where
-    H: Fn(usize) -> f64,
     Fx: Rv<X> + HasSuffStat<X>,
     Pr: ConjugatePrior<X, Fx>,
     Fx::Stat: Clone,
@@ -114,7 +118,7 @@ where
                         .exp();
 
                     r_seen += self.r[i];
-                    let h = (self.hazard)(i);
+                    let h = self.hazard;
                     self.r[i + 1] = self.r[i] * pp * (1.0 - h);
                     r0 += self.r[i] * pp * h;
                     r_sum += self.r[i + 1];
@@ -170,7 +174,6 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::constant_hazard;
     use crate::generators;
     use crate::utils::*;
     use crate::MapPathDetector;
@@ -185,13 +188,13 @@ mod tests {
         );
 
         let mut cpd = BocpdTruncated::new(
-            constant_hazard(250.0),
+            250.0,
             Gaussian::standard(),
             NormalGamma::new(0.0, 1.0, 1.0, 1.0).unwrap(),
         );
 
         let res: Vec<Vec<f64>> =
-            data.iter().map(|d| cpd.step(d).clone().to_vec()).collect();
+            data.iter().map(|d| cpd.step(d).to_vec()).collect();
 
         for row in res.iter() {
             let sum: f64 = row.iter().sum();
@@ -207,7 +210,7 @@ mod tests {
         );
 
         let mut cpd = MostLikelyPathWrapper::new(BocpdTruncated::new(
-            constant_hazard(250.0),
+            250.0,
             Gaussian::standard(),
             NormalGamma::new_unchecked(0.0, 1.0, 1.0, 1.0),
         ));
@@ -234,7 +237,7 @@ mod tests {
         let data = generators::coal_mining_incidents();
 
         let mut cpd = MostLikelyPathWrapper::new(BocpdTruncated::new(
-            constant_hazard(100.0),
+            100.0,
             Poisson::new_unchecked(123.0),
             Gamma::new_unchecked(1.0, 1.0),
         ));
@@ -271,7 +274,7 @@ mod tests {
             .collect();
 
         let mut cpd = MostLikelyPathWrapper::new(BocpdTruncated::new(
-            constant_hazard(250.0),
+            250.0,
             Gaussian::standard(),
             NormalGamma::new_unchecked(0.0, 1.0, 1.0, 1E-5),
         ));

@@ -30,13 +30,17 @@ Includes the following change point detection algorithms:
 //! > Market Rate [TB3MS], retrieved from FRED, Federal Reserve Bank of St. Louis;
 //! > https://fred.stlouisfed.org/series/TB3MS, August 5, 2019.
 
-use changepoint::{constant_hazard, utils, BocpdTruncated, MapPathDetector};
+use changepoint::{utils, BocpdTruncated, MapPathDetector};
 use rv::prelude::*;
 use std::io;
+use std::path::PathBuf;
+use std::fs::read_to_string;
 
 fn main() -> io::Result<()> {
     // Parse the data from the TB3MS dataset
-    let data: &str = include_str!("./resources/TB3MS.csv");
+    let mut csv_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    csv_path.push("resources/TB3MS.csv");
+    let data: String = read_to_string(&csv_path)?;
     let (dates, pct_change): (Vec<&str>, Vec<f64>) = data
         .lines()
         .skip(1)
@@ -50,7 +54,7 @@ fn main() -> io::Result<()> {
 
     // Create the Bocpd processor
     let mut cpd = utils::MostLikelyPathWrapper::new(BocpdTruncated::new(
-        constant_hazard(250.0),
+        250.0,
         Gaussian::standard(),
         NormalGamma::new_unchecked(0.0, 1.0, 1.0, 1E-5),
     ));
@@ -82,6 +86,6 @@ fn main() -> io::Result<()> {
 ```
 
 To run this example, from the source root, run `cargo run --example treasury_bill`.
-The partner notebook can be used to generate the following plots: 
+The partner notebook can be used to generate the following plots:
 
 ![Treasury Bill Plots](./images/treasury_bill_plots.png)

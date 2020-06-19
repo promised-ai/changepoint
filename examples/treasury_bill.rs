@@ -8,7 +8,7 @@
 //! > Market Rate [TB3MS], retrieved from FRED, Federal Reserve Bank of St. Louis;
 //! > https://fred.stlouisfed.org/series/TB3MS, August 5, 2019.
 
-use changepoint::{constant_hazard, utils, BocpdTruncated, MapPathDetector};
+use changepoint::{utils, BocpdTruncated, MapPathDetector};
 use rv::prelude::*;
 use std::io;
 
@@ -28,7 +28,7 @@ fn main() -> io::Result<()> {
 
     // Create the Bocpd processor
     let mut cpd = utils::MostLikelyPathWrapper::new(BocpdTruncated::new(
-        constant_hazard(250.0),
+        250.0,
         Gaussian::standard(),
         NormalGamma::new_unchecked(0.0, 1.0, 1.0, 1E-5),
     ));
