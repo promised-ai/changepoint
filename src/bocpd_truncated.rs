@@ -30,6 +30,8 @@ where
     empty_suffstat: Fx::Stat,
     cdf_threshold: f64,
     cutoff_threadhold: f64,
+    votes_mean: Vec<f64>,
+    votes_var: Vec<f64>,
 }
 
 impl<X, Fx, Pr> BocpdTruncated<X, Fx, Pr>
@@ -66,6 +68,8 @@ where
             empty_suffstat: fx.empty_suffstat(),
             cdf_threshold: 1E-3,
             cutoff_threadhold: 1E-6,
+            votes_mean: Vec::new(),
+            votes_var: Vec::new(),
         }
     }
 
@@ -162,12 +166,35 @@ where
             .iter_mut()
             .for_each(|stat| stat.observe(data));
 
+        // Update the vote vecs
+        self.votes_mean.push(0.0);
+        self.votes_var.push(0.0);
+
+        let r_offset = self.votes_mean.len() - self.r.len();
+        let r_len = self.r.len();
+        for i in 0..r_len {
+            let pi = self.r[r_len - i - 1];
+            self.votes_mean[i + r_offset] += pi;
+            self.votes_var[i + r_offset] += (1.0 - pi) * pi;
+        }
+
+        debug_assert!(
+            !self.r.iter().any(|x| x.is_nan()),
+            "Resulting run-length probabilities cannot contain NaNs"
+        );
         &self.r
     }
 
     fn reset(&mut self) {
         self.suff_stats.clear();
         self.r.clear();
+    }
+
+    fn votes_mean(&self) -> &[f64] {
+        &self.votes_mean
+    }
+    fn votes_var(&self) -> &[f64] {
+        &self.votes_var
     }
 }
 
@@ -176,7 +203,6 @@ mod tests {
     use super::*;
     use crate::generators;
     use crate::utils::*;
-    use crate::MapPathDetector;
     use rand::rngs::StdRng;
     use rand::SeedableRng;
 
@@ -206,53 +232,46 @@ mod tests {
     fn detect_obvious_switch() {
         let mut rng: StdRng = StdRng::seed_from_u64(0xABCD);
         let data = generators::discontinuous_jump(
-            &mut rng, 0.0, 1.0, 10.0, 5.0, 500, 1000,
+            &mut rng, 0.0, 1.0, 10.0, 5.0, 500, 700,
         );
 
-        let mut cpd = MostLikelyPathWrapper::new(BocpdTruncated::new(
+        let mut cpd = BocpdTruncated::new(
             250.0,
             Gaussian::standard(),
             NormalGamma::new_unchecked(0.0, 1.0, 1.0, 1.0),
-        ));
+        );
 
-        let res: Vec<Vec<f64>> = data
-            .iter()
-            .map(|d| cpd.step(d).map_path_probs.clone().into())
-            .collect();
+        let res: Vec<Vec<f64>> =
+            data.iter().map(|d| (*cpd.step(d)).into()).collect();
         let change_points =
-            ChangePointDetectionMethod::NonIncremental.detect(&res);
+            ChangePointDetectionMethod::NegativeChangeInMAP.detect(&res);
 
-        // Write output
-        // utils::write_data_and_r("obvious_jump", &data, &res, &change_points).unwrap();
+        assert_eq!(change_points, vec![500]);
 
-        // TODO: This really should be 500 and not 501 but there's little difference
-        assert_eq!(change_points, vec![500, 501]);
-        // for (i, line) in res.iter().enumerate() {
-        //     println!("{:04}: {:?} sum = {}", i, line, line.iter().sum::<f64>());
-        // }
+        let mut votes: Vec<(usize, &f64)> =
+            cpd.votes_mean().iter().enumerate().collect();
+        votes.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+        let maxes: Vec<usize> =
+            votes.iter().rev().take(2).map(|x| x.0).collect();
+        assert_eq!(maxes, [0, 499]);
     }
 
     #[test]
     fn coal_mining_data() {
         let data = generators::coal_mining_incidents();
 
-        let mut cpd = MostLikelyPathWrapper::new(BocpdTruncated::new(
+        let mut cpd = BocpdTruncated::new(
             100.0,
             Poisson::new_unchecked(123.0),
             Gamma::new_unchecked(1.0, 1.0),
-        ));
+        );
 
-        let res: Vec<Vec<f64>> = data
-            .iter()
-            .map(|d| cpd.step(d).map_path_probs.clone().into())
-            .collect();
+        let res: Vec<Vec<f64>> =
+            data.iter().map(|d| cpd.step(d).into()).collect();
         let change_points =
-            ChangePointDetectionMethod::DropThreshold(0.5).detect(&res);
+            ChangePointDetectionMethod::NegativeChangeInMAP.detect(&res);
 
-        // Write output
-        // utils::write_data_and_r("mining", &data, &res, &change_points).unwrap();
-
-        assert_eq!(change_points, vec![50, 107]);
+        assert_eq!(change_points, vec![47, 49, 53, 102]);
     }
 
     /// This test checks for change points with 3-month treasury bill market data
@@ -273,24 +292,21 @@ mod tests {
             })
             .collect();
 
-        let mut cpd = MostLikelyPathWrapper::new(BocpdTruncated::new(
+        let mut cpd = BocpdTruncated::new(
             250.0,
             Gaussian::standard(),
             NormalGamma::new_unchecked(0.0, 1.0, 1.0, 1E-5),
-        ));
+        );
 
         let res: Vec<Vec<f64>> = data
             .iter()
             .zip(data.iter().skip(1))
             .map(|(a, b)| (b - a) / a)
-            .map(|d| cpd.step(&d).map_path_probs.clone().into())
+            .map(|d| cpd.step(&d).into())
             .collect();
         let change_points =
             ChangePointDetectionMethod::DropThreshold(0.1).detect(&res);
 
-        // Write output
-        // utils::write_data_and_r("treasury_change", &data, &res, &change_points).unwrap();
-
-        assert_eq!(change_points, vec![135, 295, 897, 981, 1010]);
+        assert_eq!(change_points, vec![93, 130, 294, 896, 981, 1005]);
     }
 }
