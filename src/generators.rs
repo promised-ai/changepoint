@@ -3,7 +3,7 @@ use rand::Rng;
 use rv::dist::Gaussian;
 use rv::traits::Rv;
 
-/// Generate a series of draws from two gaussian process that switches
+/// Generate a series of draws from two Gaussian process that switches
 /// at `switch` into the sequence.
 ///
 /// # Example
@@ -12,7 +12,7 @@ use rv::traits::Rv;
 /// use rand::rngs::StdRng;
 /// use rand::SeedableRng;
 /// let mut rng: StdRng = StdRng::seed_from_u64(0x12345);
-/// // Generate a sequence of 1000 numbers from two gaussains, G(0, 1) and G(10, 5),
+/// // Generate a sequence of 1000 numbers from two Gaussian, G(0, 1) and G(10, 5),
 /// // switching from the first to the second at 500 steps.
 /// let seq: Vec<f64> = discontinuous_jump(
 ///     &mut rng,
@@ -39,8 +39,8 @@ pub fn discontinuous_jump<R: Rng>(
     [g1.sample(switch, rng), g2.sample(size - switch, rng)].concat()
 }
 
-/// From: R. G. Jarrett. A note on the intervals betweencoal-mining disasters.Biometrika,
-/// 66(1):191–193,1979
+/// From: R. G. Jarrett. A note on the intervals between coal-mining disasters.
+/// Biometrika, 66(1):191–193,1979
 pub fn coal_mining_incidents() -> Vec<u8> {
     // Number of mining explosions in the UK from 1851 to 1962, by year.
     let data: [u8; 111] = [

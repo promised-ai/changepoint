@@ -1,15 +1,10 @@
 //! General Utilities
 
-use crate::run_length_detector::{
-    MapPathDetector, MapPathResult, RunLengthDetector,
-};
 use rv::misc::argmax;
-use std::collections::VecDeque;
 use std::fmt::Display;
 use std::fs::File;
 use std::io;
 use std::io::prelude::*;
-use std::marker::PhantomData;
 
 #[cfg(feature = "serde1")]
 use serde::{Deserialize, Serialize};
@@ -35,12 +30,16 @@ pub fn write_data_and_r<T: Display>(
 
     let t = r.len();
     r.iter()
-        .map(|rs| {
+        .enumerate()
+        .map(|(i, rs)| {
             for r in rs {
-                write!(r_f, "{} ", r)?;
+                write!(r_f, "{},", r)?;
+                if r.is_nan() || r.is_infinite() {
+                    eprintln!("NaN/Infinite value in output: Row {}", i);
+                }
             }
             for _ in rs.len()..t {
-                write!(r_f, "{} ", std::f64::NEG_INFINITY)?;
+                write!(r_f, ",")?;
             }
             writeln!(r_f)?;
             Ok(())
@@ -86,6 +85,8 @@ pub enum ChangePointDetectionMethod {
     NonIncremental,
     /// Detect when the most likely path's length drops by some fraction.
     DropThreshold(f64),
+    /// Detect negative change in MAP run length
+    NegativeChangeInMAP,
 }
 
 impl ChangePointDetectionMethod {
@@ -121,151 +122,17 @@ impl ChangePointDetectionMethod {
                     last_argmax = this_argmax;
                 }
             }
-        }
-        res
-    }
-}
-
-/// Wrap a run-length detector to keep track of most likely breakpoints
-#[derive(Clone, Default)]
-#[cfg_attr(feature = "serde1", derive(Serialize, Deserialize))]
-pub struct MostLikelyPathWrapper<T, RL>
-where
-    RL: RunLengthDetector<T>,
-{
-    detector: RL,
-    hist: VecDeque<f64>,
-    _phantom_t: PhantomData<T>,
-}
-
-impl<T, RL> MapPathDetector<T> for MostLikelyPathWrapper<T, RL>
-where
-    RL: RunLengthDetector<T>,
-{
-    /// Step the underlying detector and return accumulated log probabilities
-    ///
-    /// Algorithm from: https://youtu.be/cas__TaFk9U
-    fn step(&mut self, value: &T) -> MapPathResult {
-        let run_length_probs = self.detector.step(value);
-        let log_probs: Vec<f64> =
-            run_length_probs.iter().map(|p| p.ln()).collect();
-
-        let max_hist: f64 = self
-            .hist
-            .iter()
-            .max_by(|a, b| a.partial_cmp(b).unwrap())
-            .copied()
-            .unwrap_or(0.0);
-
-        self.hist.push_front(max_hist);
-
-        for (i, lp) in log_probs.iter().enumerate() {
-            self.hist[i] += lp;
-        }
-
-        self.hist.truncate(log_probs.len());
-        MapPathResult {
-            map_path_probs: &self.hist,
-            runlength_probs: run_length_probs,
-        }
-    }
-
-    fn reset(&mut self) {
-        self.detector.reset();
-    }
-}
-
-impl<T, RL> MostLikelyPathWrapper<T, RL>
-where
-    RL: RunLengthDetector<T>,
-{
-    /// Create a new MostLikelyPathWrapper around a detector
-    pub fn new(detector: RL) -> Self {
-        Self {
-            detector,
-            hist: VecDeque::new(),
-            _phantom_t: PhantomData,
-        }
-    }
-}
-
-/// Track the Maximum aposterori run-length for deviations
-///
-#[derive(Clone, Debug, Default, PartialEq)]
-#[cfg_attr(feature = "serde1", derive(Serialize, Deserialize))]
-pub struct MapTracker {
-    last_map: Option<usize>,
-}
-
-impl MapTracker {
-    /// Create a new MapTracker
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    /// Monitor a new run length or MAP path sequence of probabilities for changes
-    pub fn track(&mut self, ps: &[f64]) -> MapChange {
-        let this_map: usize = ps
-            .iter()
-            .enumerate()
-            .max_by(|(_, a), (_, b)| {
-                a.partial_cmp(b).expect("NaNs are not supported here")
-            })
-            .unwrap()
-            .0;
-        match self.last_map.replace(this_map) {
-            None => MapChange::Initial(this_map),
-            Some(last) => {
-                if last + 1 == this_map {
-                    MapChange::Incremental(this_map)
-                } else {
-                    MapChange::Interrupted(this_map)
+            Self::NegativeChangeInMAP => {
+                let mut last_argmax = *argmax(&r[0]).last().unwrap();
+                for i in 1..r.len() {
+                    let this_argmax = *argmax(&r[i]).last().unwrap();
+                    if this_argmax < last_argmax {
+                        res.push(i);
+                    }
+                    last_argmax = this_argmax;
                 }
             }
         }
-    }
-
-    /// Reset the tracker
-    pub fn reset(&mut self) {
-        self.last_map = None;
-    }
-}
-
-/// A change in the MAP run-length
-#[derive(Clone, Debug, PartialEq, Eq)]
-#[cfg_attr(feature = "serde1", derive(Serialize, Deserialize))]
-pub enum MapChange {
-    /// The first type of change from an initialization
-    Initial(usize),
-    /// MAP increased by one
-    Incremental(usize),
-    /// MAP changed by a value other than +1
-    Interrupted(usize),
-}
-
-impl MapChange {
-    /// Location of the change reported
-    pub fn location(&self) -> usize {
-        match self {
-            MapChange::Initial(s) => *s,
-            MapChange::Incremental(s) => *s,
-            MapChange::Interrupted(s) => *s,
-        }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn map_change_simple() {
-        let mut mc = MapTracker::new();
-        assert_eq!(mc.track(&vec![1.0]), MapChange::Initial(0));
-        assert_eq!(mc.track(&vec![0.25, 0.75]), MapChange::Incremental(1));
-        assert_eq!(
-            mc.track(&vec![0.25, 0.50, 0.25]),
-            MapChange::Interrupted(1)
-        );
+        res
     }
 }

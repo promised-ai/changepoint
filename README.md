@@ -30,7 +30,7 @@ Includes the following change point detection algorithms:
 //! > Market Rate [TB3MS], retrieved from FRED, Federal Reserve Bank of St. Louis;
 //! > https://fred.stlouisfed.org/series/TB3MS, August 5, 2019.
 
-use changepoint::{utils, BocpdTruncated, MapPathDetector};
+use changepoint::{utils, BocpdTruncated, RunLengthDetector};
 use rv::prelude::*;
 use std::io;
 use std::path::PathBuf;
@@ -53,21 +53,21 @@ fn main() -> io::Result<()> {
         .unzip();
 
     // Create the Bocpd processor
-    let mut cpd = utils::MostLikelyPathWrapper::new(BocpdTruncated::new(
+    let mut cpd = BocpdTruncated::new(
         250.0,
         Gaussian::standard(),
         NormalGamma::new_unchecked(0.0, 1.0, 1.0, 1E-5),
-    ));
+    );
 
     // Feed data into change point detector
     let res: Vec<Vec<f64>> = pct_change
         .iter()
-        .map(|d| cpd.step(d).map_path_probs.clone().into())
+        .map(|d| cpd.step(d).into())
         .collect();
 
     // Determine most likely change points
     let change_points: Vec<usize> =
-        utils::ChangePointDetectionMethod::DropThreshold(0.1).detect(&res);
+        utils::ChangePointDetectionMethod::NegativeChangeInMAP.detect(&res);
     let change_dates: Vec<&str> =
         change_points.iter().map(|&i| dates[i]).collect();
 

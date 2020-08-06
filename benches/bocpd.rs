@@ -19,7 +19,7 @@ fn bench_online_bayesian(c: &mut Criterion) {
                 b.iter(|| {
                     // Create the Bocpd processor
                     let mut cpd = Bocpd::new(
-                        constant_hazard(250.0),
+                        250.0,
                         Gaussian::standard(),
                         NormalGamma::new_unchecked(0.0, 1.0, 1.0, 1E-5),
                     );
