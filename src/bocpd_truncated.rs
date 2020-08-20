@@ -17,6 +17,7 @@ use serde::{Deserialize, Serialize};
 /// The truncation point is chosen based on the most recent point from which
 /// all successive mass is below the given threshold.
 #[cfg_attr(feature = "serde1", derive(Serialize, Deserialize))]
+#[derive(Clone, Debug)]
 pub struct BocpdTruncated<X, Fx, Pr>
 where
     Fx: Rv<X> + HasSuffStat<X>,

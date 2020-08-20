@@ -13,6 +13,7 @@ use serde::{Deserialize, Serialize};
 
 /// Online Bayesian Change Point Detection state container
 #[cfg_attr(feature = "serde1", derive(Serialize, Deserialize))]
+#[derive(Clone, Debug)]
 pub struct Bocpd<X, Fx, Pr>
 where
     Fx: Rv<X> + HasSuffStat<X>,
