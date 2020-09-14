@@ -8,9 +8,10 @@
 //! > Market Rate [TB3MS], retrieved from FRED, Federal Reserve Bank of St. Louis;
 //! > https://fred.stlouisfed.org/series/TB3MS, August 5, 2019.
 
-use changepoint::{utils, BocpdTruncated, RunLengthDetector};
+use changepoint::{utils, BocpdLike, BocpdTruncated};
 use rv::prelude::*;
 use std::io;
+use utils::map_changepoints;
 
 fn main() -> io::Result<()> {
     // Parse the data from the TB3MS dataset
@@ -29,17 +30,15 @@ fn main() -> io::Result<()> {
     // Create the Bocpd processor
     let mut cpd = BocpdTruncated::new(
         250.0,
-        Gaussian::standard(),
         NormalGamma::new_unchecked(0.0, 1.0, 1.0, 1E-5),
     );
 
     // Feed data into change point detector
-    let res: Vec<Vec<f64>> =
+    let rs: Vec<Vec<f64>> =
         pct_change.iter().map(|d| cpd.step(d).into()).collect();
 
     // Determine most likely change points
-    let change_points: Vec<usize> =
-        utils::ChangePointDetectionMethod::DropThreshold(0.1).detect(&res);
+    let change_points: Vec<usize> = map_changepoints(&rs);
     let change_dates: Vec<&str> =
         change_points.iter().map(|&i| dates[i]).collect();
 
@@ -47,7 +46,7 @@ fn main() -> io::Result<()> {
     utils::write_data_and_r(
         "treasury_bill_output",
         &pct_change,
-        &res,
+        &rs,
         &change_points,
     )?;
 

@@ -6,17 +6,10 @@ Changepoint is a library for doing change point detection for streams of data.
 [![Crates.io](https://img.shields.io/crates/l/changepoint)](https://gitlab.com/Redpoll/changepoint/-/blob/master/LICENSE)
 [![docs.rs](https://docs.rs/changepoint/badge.svg)](https://docs.rs/changepoint)
 
-## Usage
-To use `changepoint`, first add this to your `Cargo.toml`:
-
-```toml
-[dependencies]
-changepoint = "0.1"
-```
-
 ## Algorithms
 Includes the following change point detection algorithms:
-* `BOCPD` -- Online Bayesian Change Point Detection [Reference](https://arxiv.org/pdf/0710.3742.pdf).
+* `Bocpd` -- Online Bayesian Change Point Detection [Reference](https://arxiv.org/pdf/0710.3742.pdf).
+* `BocpdTruncated` -- Same as `Bocpd` but truncated the run-length distribution when those lengths are unlikely.
 
 ## Example
 ```rust
@@ -30,7 +23,7 @@ Includes the following change point detection algorithms:
 //! > Market Rate [TB3MS], retrieved from FRED, Federal Reserve Bank of St. Louis;
 //! > https://fred.stlouisfed.org/series/TB3MS, August 5, 2019.
 
-use changepoint::{utils, BocpdTruncated, RunLengthDetector};
+use changepoint::{utils::*, BocpdTruncated, BocpdLike};
 use rv::prelude::*;
 use std::io;
 use std::path::PathBuf;
@@ -55,27 +48,25 @@ fn main() -> io::Result<()> {
     // Create the Bocpd processor
     let mut cpd = BocpdTruncated::new(
         250.0,
-        Gaussian::standard(),
-        NormalGamma::new_unchecked(0.0, 1.0, 1.0, 1E-5),
+        NormalGamma::new_unchecked(0.0, 1.0, 1.0, 1.0),
     );
 
-    // Feed data into change point detector
-    let res: Vec<Vec<f64>> = pct_change
+    // Feed data into change point detector and generate a sequence of run-length distributions
+    let rs: Vec<Vec<f64>> = pct_change
         .iter()
         .map(|d| cpd.step(d).into())
         .collect();
 
     // Determine most likely change points
-    let change_points: Vec<usize> =
-        utils::ChangePointDetectionMethod::NegativeChangeInMAP.detect(&res);
+    let change_points: Vec<usize> = map_changepoints(&rs);
     let change_dates: Vec<&str> =
         change_points.iter().map(|&i| dates[i]).collect();
 
     // Write output for processing my `trasury_bill.ipynb`.
-    utils::write_data_and_r(
+    write_data_and_r(
         "treasury_bill_output",
         &pct_change,
-        &res,
+        &rs,
         &change_points,
     )?;
 

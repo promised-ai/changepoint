@@ -9,8 +9,8 @@ doctest!("../README.md");
 mod bocpd;
 pub use bocpd::*;
 
-mod run_length_detector;
-pub use run_length_detector::*;
+mod traits;
+pub use self::traits::*;
 
 mod bocpd_truncated;
 pub use bocpd_truncated::*;
@@ -18,6 +18,7 @@ pub use bocpd_truncated::*;
 mod hazard;
 pub use hazard::*;
 
+#[cfg(test)]
 pub mod generators;
 
 pub mod utils;

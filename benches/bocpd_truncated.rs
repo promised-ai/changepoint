@@ -20,8 +20,7 @@ fn bench_online_bayesian(c: &mut Criterion) {
                     // Create the Bocpd processor
                     let mut cpd = BocpdTruncated::new(
                         250.0,
-                        Gaussian::standard(),
-                        NormalGamma::new_unchecked(0.0, 1.0, 1.0, 1E-5),
+                        NormalGamma::new_unchecked(0.0, 1.0, 1.0, 1.0),
                     );
 
                     // Feed data into change point detector

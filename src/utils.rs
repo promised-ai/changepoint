@@ -1,13 +1,12 @@
 //! General Utilities
 
-use rv::misc::argmax;
+use rand::Rng;
+use rv::{
+    misc::argmax, prelude::Categorical, prelude::CategoricalError, prelude::Rv,
+};
 use std::fmt::Display;
 use std::fs::File;
-use std::io;
-use std::io::prelude::*;
-
-#[cfg(feature = "serde1")]
-use serde::{Deserialize, Serialize};
+use std::io::{self, prelude::*};
 
 /// Writes data and R to `{prefix}_data.txt` and `{prefix}_r.txt`, respectively.
 #[allow(clippy::ptr_arg)]
@@ -75,64 +74,79 @@ pub fn window_over_threshold(
     result
 }
 
-/// Alternative methods for detecting change points
-#[derive(Clone, Debug, PartialEq)]
-#[cfg_attr(feature = "serde1", derive(Serialize, Deserialize))]
-pub enum ChangePointDetectionMethod {
-    /// Detect when the most likely path is reset to zero.
-    Reset,
-    /// Detect when the most likely path is not incremented by one.
-    NonIncremental,
-    /// Detect when the most likely path's length drops by some fraction.
-    DropThreshold(f64),
-    /// Detect negative change in MAP run length
-    NegativeChangeInMAP,
+/// Infer change-point locations from the run-length distributions
+///
+/// This method works by walking backwards through the run-length distributions jumping back to
+/// past distributions until the process ends at the first step.
+///
+/// # Parameters
+/// * `rs` - Run lengths probability distributions for each step observed
+/// * `sample_size` - Number of monte-carlo draws from the rl distribution
+/// * `rng` - Random number generator
+///
+/// # Returns
+/// The return value is the proportion of samples which show a change-point at the given index.
+pub fn infer_changepoints<R: Rng>(
+    rs: &[Vec<f64>],
+    sample_size: usize,
+    rng: &mut R,
+) -> Result<Vec<f64>, CategoricalError> {
+    let n = rs.len();
+    let dists: Vec<Categorical> =
+        rs.iter()
+            .map(|r| Categorical::new(&r))
+            .collect::<Result<Vec<Categorical>, CategoricalError>>()?;
+
+    let counts: Vec<usize> =
+        (0..sample_size).fold(vec![0_usize; n], |mut acc, _| {
+            let mut s: usize = n - 1;
+            while s != 0 {
+                let cur_run_length: usize = dists[s].draw(rng);
+                s = s.saturating_sub(cur_run_length);
+                acc[s] += 1;
+            }
+            acc
+        });
+
+    Ok(counts
+        .into_iter()
+        .map(|c| (c as f64) / (sample_size as f64))
+        .collect())
 }
 
-impl ChangePointDetectionMethod {
-    /// Detect changepoints with the given method
-    #[allow(clippy::needless_range_loop, clippy::ptr_arg)]
-    pub fn detect(&self, r: &Vec<Vec<f64>>) -> Vec<usize> {
-        let mut res = Vec::new();
-        match self {
-            ChangePointDetectionMethod::Reset => {
-                for i in 1..r.len() {
-                    if argmax(&r[i]).iter().any(|&x| x == 0) {
-                        res.push(i);
-                    }
-                }
-            }
-            ChangePointDetectionMethod::NonIncremental => {
-                let mut last_argmax: usize = *argmax(&r[0]).last().unwrap();
-                for i in 1..r.len() {
-                    let this_argmax = *argmax(&r[i]).last().unwrap();
-                    if last_argmax + 1 != this_argmax {
-                        res.push(i);
-                    }
-                    last_argmax = this_argmax;
-                }
-            }
-            ChangePointDetectionMethod::DropThreshold(t) => {
-                let mut last_argmax: usize = *argmax(&r[0]).last().unwrap();
-                for i in 1..r.len() {
-                    let this_argmax = *argmax(&r[i]).last().unwrap();
-                    if (this_argmax as f64) / (last_argmax as f64) < 1.0 - t {
-                        res.push(i);
-                    }
-                    last_argmax = this_argmax;
-                }
-            }
-            Self::NegativeChangeInMAP => {
-                let mut last_argmax = *argmax(&r[0]).last().unwrap();
-                for i in 1..r.len() {
-                    let this_argmax = *argmax(&r[i]).last().unwrap();
-                    if this_argmax < last_argmax {
-                        res.push(i);
-                    }
-                    last_argmax = this_argmax;
-                }
-            }
-        }
-        res
+/// Creates a pseudo cmf distribution for change-point locations.
+///
+/// This calculates the cumulative sum of the infer_changepoints return value mod 1.0.
+///
+/// See [infer_changepoints](fn.infer_changepoints.html) for more detail.
+pub fn infer_pseudo_cmf_changepoints<R: Rng>(
+    rs: &[Vec<f64>],
+    sample_size: usize,
+    rng: &mut R,
+) -> Result<Vec<f64>, CategoricalError> {
+    let ps = infer_changepoints(rs, sample_size, rng)?;
+    Ok(ps
+        .into_iter()
+        .scan(0.0, |acc, x| {
+            *acc = (*acc + x).rem_euclid(1.0);
+            Some(*acc)
+        })
+        .collect())
+}
+
+/// Maximum a posteriori change points
+///
+/// This reverse walks through the run-length distribution sequence and only takes the most likely
+/// set of change-points.
+pub fn map_changepoints(r: &[Vec<f64>]) -> Vec<usize> {
+    let mut s = r.len() - 1;
+    let mut change_points = vec![];
+    while s != 0 {
+        s = s.saturating_sub(
+            *argmax(&r[s]).first().expect("r should not be empty"),
+        );
+        change_points.push(s);
     }
+    change_points.reverse();
+    change_points
 }

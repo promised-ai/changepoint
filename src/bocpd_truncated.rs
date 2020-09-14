@@ -4,7 +4,8 @@
 //! "Bayesian Online Changepoint Detection"; Ryan Adams, David MacKay; arXiv:0710.3742
 //! Which can be found [here](https://arxiv.org/pdf/0710.3742.pdf).
 
-use crate::run_length_detector::RunLengthDetector;
+use crate::traits::BocpdLike;
+use rand::{rngs::SmallRng, SeedableRng};
 use rv::prelude::*;
 use std::collections::VecDeque;
 
@@ -27,50 +28,49 @@ where
     hazard: f64,
     predictive_prior: Pr,
     suff_stats: VecDeque<Fx::Stat>,
+    initial_suffstat: Option<Fx::Stat>,
     r: Vec<f64>,
     empty_suffstat: Fx::Stat,
     cdf_threshold: f64,
     cutoff_threadhold: f64,
-    votes_mean: Vec<f64>,
-    votes_var: Vec<f64>,
 }
 
 impl<X, Fx, Pr> BocpdTruncated<X, Fx, Pr>
 where
     Fx: Rv<X> + HasSuffStat<X>,
-    Pr: ConjugatePrior<X, Fx>,
+    Pr: ConjugatePrior<X, Fx, Posterior = Pr> + Clone,
     Fx::Stat: Clone,
 {
     /// Create a new Bocpd analyzer
     ///
     /// # Parameters
     /// * `hazard` - The hazard function for `P_{gap} = 1/hazard`.
-    /// * `fx` - Predictive distribution. Used for generating an empty `SuffStat`.
     /// * `predictive_prior` - Prior for the predictive distribution.
     ///
     /// # Example
     /// ```rust
     /// use changepoint::BocpdTruncated;
     /// use rv::prelude::*;
-    /// use std::sync::Arc;
     ///
     /// let cpd = BocpdTruncated::new(
     ///     250.0,
-    ///     Gaussian::standard(),
     ///     NormalGamma::new_unchecked(0.0, 1.0, 1.0, 1.0),
     /// );
     /// ```
-    pub fn new(hazard_lambda: f64, fx: Fx, predictive_prior: Pr) -> Self {
+    pub fn new(hazard_lambda: f64, predictive_prior: Pr) -> Self {
+        let mut rng = SmallRng::seed_from_u64(0xABCD);
+        let fx: Fx = predictive_prior.draw(&mut rng);
+        let empty_suffstat = fx.empty_suffstat();
+
         Self {
             hazard: hazard_lambda.recip(),
             predictive_prior,
             suff_stats: VecDeque::new(),
             r: Vec::new(),
-            empty_suffstat: fx.empty_suffstat(),
+            empty_suffstat,
             cdf_threshold: 1E-3,
             cutoff_threadhold: 1E-6,
-            votes_mean: Vec::new(),
-            votes_var: Vec::new(),
+            initial_suffstat: None,
         }
     }
 
@@ -89,20 +89,51 @@ where
     }
 }
 
-impl<X, Fx, Pr> RunLengthDetector<X> for BocpdTruncated<X, Fx, Pr>
+impl<X, Fx, Pr> BocpdTruncated<X, Fx, Pr>
 where
     Fx: Rv<X> + HasSuffStat<X>,
-    Pr: ConjugatePrior<X, Fx>,
+    Pr: ConjugatePrior<X, Fx, Posterior = Pr>,
     Fx::Stat: Clone,
 {
+    /// Reduce the observed values into a new BOCPD with those observed values integrated into the
+    /// prior.
+    pub fn collapse_stats(self) -> Self {
+        let new_prior: Pr = if let Some(suff_stat) = self.suff_stats.back() {
+            self.predictive_prior
+                .posterior(&DataOrSuffStat::SuffStat(suff_stat))
+        } else {
+            self.predictive_prior
+        };
+        Self {
+            suff_stats: VecDeque::new(),
+            r: vec![],
+            predictive_prior: new_prior,
+            ..self
+        }
+    }
+}
+
+impl<X, Fx, Pr> BocpdLike<X> for BocpdTruncated<X, Fx, Pr>
+where
+    Fx: Rv<X> + HasSuffStat<X>,
+    Pr: ConjugatePrior<X, Fx, Posterior = Pr> + Clone,
+    Fx::Stat: Clone,
+{
+    type Fx = Fx;
+    type PosteriorPredictive = Mixture<Pr>;
+
     /// Update the model with a new datum and return the distribution of run lengths.
     fn step(&mut self, data: &X) -> &[f64] {
-        self.suff_stats.push_front(self.empty_suffstat.clone());
-
         if self.r.is_empty() {
+            self.suff_stats.push_front(
+                self.initial_suffstat
+                    .clone()
+                    .unwrap_or_else(|| self.empty_suffstat.clone()),
+            );
             // The initial point is, by definition, a change point
             self.r.push(1.0);
         } else {
+            self.suff_stats.push_front(self.empty_suffstat.clone());
             self.r.push(0.0);
             let mut r0 = 0.0;
             let mut r_sum = 0.0;
@@ -159,6 +190,12 @@ where
             if let Some(trunc_index) = cutoff {
                 self.r.truncate(trunc_index);
                 self.suff_stats.truncate(trunc_index);
+
+                // Renormalize r
+                let r_sum: f64 = self.r.iter().sum();
+                for i in 0..self.r.len() {
+                    self.r[i] /= r_sum;
+                }
             }
         }
 
@@ -166,18 +203,6 @@ where
         self.suff_stats
             .iter_mut()
             .for_each(|stat| stat.observe(data));
-
-        // Update the vote vecs
-        self.votes_mean.push(0.0);
-        self.votes_var.push(0.0);
-
-        let r_offset = self.votes_mean.len() - self.r.len();
-        let r_len = self.r.len();
-        for i in 0..r_len {
-            let pi = self.r[r_len - i - 1];
-            self.votes_mean[i + r_offset] += pi;
-            self.votes_var[i + r_offset] += (1.0 - pi) * pi;
-        }
 
         debug_assert!(
             !self.r.iter().any(|x| x.is_nan()),
@@ -191,11 +216,37 @@ where
         self.r.clear();
     }
 
-    fn votes_mean(&self) -> &[f64] {
-        &self.votes_mean
+    fn pp(&self) -> Self::PosteriorPredictive {
+        if self.suff_stats.is_empty() {
+            let post = self
+                .initial_suffstat
+                .clone()
+                .map(|ss| {
+                    self.predictive_prior
+                        .posterior(&DataOrSuffStat::SuffStat(&ss))
+                })
+                .unwrap_or_else(|| self.predictive_prior.clone());
+            Mixture::uniform(vec![post])
+                .expect("The mixture could not be constructed")
+        } else {
+            let dists: Vec<Pr::Posterior> = self
+                .suff_stats
+                .iter()
+                .take(self.r.len())
+                .map(|ss| {
+                    self.predictive_prior
+                        .posterior(&DataOrSuffStat::SuffStat(ss))
+                })
+                .collect();
+            Mixture::new(self.r.to_vec(), dists)
+                .expect("The mixture could not be constructed")
+        }
     }
-    fn votes_var(&self) -> &[f64] {
-        &self.votes_var
+
+    fn preload(&mut self, data: &[X]) {
+        let mut stat = self.empty_suffstat.clone();
+        stat.observe_many(data);
+        self.initial_suffstat = Some(stat);
     }
 }
 
@@ -216,7 +267,6 @@ mod tests {
 
         let mut cpd = BocpdTruncated::new(
             250.0,
-            Gaussian::standard(),
             NormalGamma::new(0.0, 1.0, 1.0, 1.0).unwrap(),
         );
 
@@ -238,41 +288,28 @@ mod tests {
 
         let mut cpd = BocpdTruncated::new(
             250.0,
-            Gaussian::standard(),
             NormalGamma::new_unchecked(0.0, 1.0, 1.0, 1.0),
         );
 
-        let res: Vec<Vec<f64>> =
+        let rs: Vec<Vec<f64>> =
             data.iter().map(|d| (*cpd.step(d)).into()).collect();
-        let change_points =
-            ChangePointDetectionMethod::NegativeChangeInMAP.detect(&res);
+        let change_points = map_changepoints(&rs);
 
-        assert_eq!(change_points, vec![500]);
-
-        let mut votes: Vec<(usize, &f64)> =
-            cpd.votes_mean().iter().enumerate().collect();
-        votes.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
-        let maxes: Vec<usize> =
-            votes.iter().rev().take(2).map(|x| x.0).collect();
-        assert_eq!(maxes, [0, 499]);
+        assert_eq!(change_points, vec![0, 499]);
     }
 
     #[test]
     fn coal_mining_data() {
         let data = generators::coal_mining_incidents();
 
-        let mut cpd = BocpdTruncated::new(
-            100.0,
-            Poisson::new_unchecked(123.0),
-            Gamma::new_unchecked(1.0, 1.0),
-        );
+        let mut cpd =
+            BocpdTruncated::new(100.0, Gamma::new_unchecked(1.0, 1.0));
 
-        let res: Vec<Vec<f64>> =
+        let rs: Vec<Vec<f64>> =
             data.iter().map(|d| cpd.step(d).into()).collect();
-        let change_points =
-            ChangePointDetectionMethod::NegativeChangeInMAP.detect(&res);
+        let change_points = map_changepoints(&rs);
 
-        assert_eq!(change_points, vec![47, 49, 53, 102]);
+        assert_eq!(change_points, vec![0, 40, 95]);
     }
 
     /// This test checks for change points with 3-month treasury bill market data
@@ -282,7 +319,7 @@ mod tests {
     /// > Market Rate [TB3MS], retrieved from FRED, Federal Reserve Bank of St. Louis;
     /// > https://fred.stlouisfed.org/series/TB3MS, March 24, 2020.
     #[test]
-    fn treasury_changes() {
+    fn treasury_changes() -> Result<(), Box<dyn std::error::Error + 'static>> {
         let raw_data: &str = include_str!("../resources/TB3MS.csv");
         let data: Vec<f64> = raw_data
             .lines()
@@ -293,21 +330,22 @@ mod tests {
             })
             .collect();
 
-        let mut cpd = BocpdTruncated::new(
-            250.0,
-            Gaussian::standard(),
-            NormalGamma::new_unchecked(0.0, 1.0, 1.0, 1E-5),
-        );
+        let mut cpd =
+            BocpdTruncated::new(250.0, NormalGamma::new(0.0, 1.0, 1.0, 1.0)?);
 
-        let res: Vec<Vec<f64>> = data
+        let rs: Vec<Vec<f64>> = data
             .iter()
             .zip(data.iter().skip(1))
             .map(|(a, b)| (b - a) / a)
-            .map(|d| cpd.step(&d).into())
+            .map(|d| cpd.step(&d).to_vec())
             .collect();
-        let change_points =
-            ChangePointDetectionMethod::DropThreshold(0.1).detect(&res);
 
-        assert_eq!(change_points, vec![93, 130, 294, 896, 981, 1005]);
+        let map_cps = map_changepoints(&rs);
+
+        assert_eq!(
+            map_cps,
+            vec![0, 66, 93, 293, 295, 887, 898, 900, 931, 936, 977, 982]
+        );
+        Ok(())
     }
 }
