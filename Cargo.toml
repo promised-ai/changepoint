@@ -1,6 +1,6 @@
 [package]
 name = "changepoint"
-version = "0.8.1"
+version = "0.9.0"
 authors = [
     "Mike Schmidt <schmidmt@gmail.com>",
     "Baxter Eaves <baxyjr@gmail.com>",
@@ -21,10 +21,14 @@ maintenance = { status = "actively-developed" }
 serde1 = ["serde", "rv/serde1"]
 
 [dependencies]
-rand = "0.7.3"
-rv = "0.10.1"
+rand = { version = "0.7", features = ["small_rng"] }
+rv = "0.10"
 serde = {version = "1", optional = true, features=["derive"]}
-doc-comment = "0.3.3"
+serde_derive = {version = "1", optional = true}
+doc-comment = "0.3"
+ndarray = { version = "0.13", features = ["serde", "approx", "rayon"] }
+derive_more = "0.99"
+rayon = "1.4"
 
 [dev-dependencies]
 assert = "0.7"
