@@ -1,5 +1,6 @@
 //! This library provides Change Point Detection (CPD) tools such as
 //!  * Online Bayesian CPD as `Bocpd`
+//!  * Autoregressive Gaussian CPD as `Argpcpd`
 #![warn(missing_docs)]
 
 // Test the README
@@ -15,8 +16,8 @@ pub use self::traits::*;
 mod bocpd_truncated;
 pub use bocpd_truncated::*;
 
-mod hazard;
-pub use hazard::*;
+pub mod gp;
+pub use gp::*;
 
 #[cfg(test)]
 pub mod generators;

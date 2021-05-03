@@ -92,18 +92,20 @@ where
 impl<X, Fx, Pr> BocpdTruncated<X, Fx, Pr>
 where
     Fx: Rv<X> + HasSuffStat<X>,
-    Pr: ConjugatePrior<X, Fx, Posterior = Pr>,
+    Pr: ConjugatePrior<X, Fx, Posterior = Pr> + Clone,
     Fx::Stat: Clone,
 {
     /// Reduce the observed values into a new BOCPD with those observed values integrated into the
     /// prior.
     pub fn collapse_stats(self) -> Self {
-        let new_prior: Pr = if let Some(suff_stat) = self.suff_stats.back() {
-            self.predictive_prior
-                .posterior(&DataOrSuffStat::SuffStat(suff_stat))
-        } else {
-            self.predictive_prior
-        };
+        let new_prior: Pr = self.suff_stats.back().map_or(
+            self.predictive_prior.clone(),
+            |suff_stat| {
+                self.predictive_prior
+                    .posterior(&DataOrSuffStat::SuffStat(suff_stat))
+            },
+        );
+
         Self {
             suff_stats: VecDeque::new(),
             r: vec![],
@@ -192,9 +194,9 @@ where
                 self.suff_stats.truncate(trunc_index);
 
                 // Renormalize r
-                let r_sum: f64 = self.r.iter().sum();
+                let this_r_sum: f64 = self.r.iter().sum();
                 for i in 0..self.r.len() {
-                    self.r[i] /= r_sum;
+                    self.r[i] /= this_r_sum;
                 }
             }
         }
@@ -218,14 +220,13 @@ where
 
     fn pp(&self) -> Self::PosteriorPredictive {
         if self.suff_stats.is_empty() {
-            let post = self
-                .initial_suffstat
-                .clone()
-                .map(|ss| {
+            let post = self.initial_suffstat.clone().map_or_else(
+                || self.predictive_prior.clone(),
+                |ss| {
                     self.predictive_prior
                         .posterior(&DataOrSuffStat::SuffStat(&ss))
-                })
-                .unwrap_or_else(|| self.predictive_prior.clone());
+                },
+            );
             Mixture::uniform(vec![post])
                 .expect("The mixture could not be constructed")
         } else {
@@ -295,7 +296,8 @@ mod tests {
             data.iter().map(|d| (*cpd.step(d)).into()).collect();
         let change_points = map_changepoints(&rs);
 
-        assert_eq!(change_points, vec![0, 499]);
+        let error = max_error(&change_points, &[0, 499]);
+        assert!(error <= 1);
     }
 
     #[test]
@@ -309,7 +311,8 @@ mod tests {
             data.iter().map(|d| cpd.step(d).into()).collect();
         let change_points = map_changepoints(&rs);
 
-        assert_eq!(change_points, vec![0, 40, 95]);
+        let error = max_error(&change_points, &[0, 40, 95]);
+        assert!(error <= 1);
     }
 
     /// This test checks for change points with 3-month treasury bill market data
@@ -340,12 +343,13 @@ mod tests {
             .map(|d| cpd.step(&d).to_vec())
             .collect();
 
-        let map_cps = map_changepoints(&rs);
+        let change_points = map_changepoints(&rs);
 
-        assert_eq!(
-            map_cps,
-            vec![0, 66, 93, 293, 295, 887, 898, 900, 931, 936, 977, 982]
+        let error = max_error(
+            &change_points,
+            &[0, 66, 93, 293, 295, 887, 898, 900, 931, 936, 977, 982],
         );
+        assert!(error <= 1);
         Ok(())
     }
 }

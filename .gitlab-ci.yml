@@ -6,7 +6,7 @@ before_script:
     - rustup component add rustfmt
 
 test:cargo-stable:
-    image: "rust:1.42"
+    image: "rust:1.51"
     script:
         - rustc --version && cargo --version
         - cargo build --all --all-features
