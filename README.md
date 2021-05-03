@@ -10,6 +10,7 @@ Changepoint is a library for doing change point detection for streams of data.
 Includes the following change point detection algorithms:
 * `Bocpd` -- Online Bayesian Change Point Detection [Reference](https://arxiv.org/pdf/0710.3742.pdf).
 * `BocpdTruncated` -- Same as `Bocpd` but truncated the run-length distribution when those lengths are unlikely.
+* `Argpcp` -- Gaussain Process Change Point detector [Reference](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.170.1450&rep=rep1&type=pdf)
 
 ## Example
 ```rust
