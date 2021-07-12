@@ -15,7 +15,7 @@ use utils::map_changepoints;
 
 fn main() -> io::Result<()> {
     // Parse the data from the TB3MS dataset
-    let data: &str = include_str!("../resources/TB3MS.csv");
+    let data: &str = include_str!("../../resources/TB3MS.csv");
     let (dates, pct_change): (Vec<&str>, Vec<f64>) = data
         .lines()
         .skip(1)
