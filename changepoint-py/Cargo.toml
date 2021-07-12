@@ -19,8 +19,11 @@ rv = { version = "0.12", features = ["process"] }
 changepoint = { path = "../changepoint" }
 
 [dependencies.pyo3]
-version = "0.13.2"
-features = ["extension-module"]
+version = "0.14.1"
+
+[features]
+extension-module = ["pyo3/extension-module"]
+default = ["extension-module"]
 
 [package.metadata.maturin]
 classifier = [

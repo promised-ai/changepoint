@@ -8,13 +8,15 @@ fn pychangepoint(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<bocpd::BocpdNg>()?;
     m.add_class::<bocpd::Ng>()?;
 
-    #[pyfn(m, "infer_changepoints")]
+    #[pyfn(m)]
+    #[pyo3(name = "infer_changepoints")]
     fn infer_changepoints(rs: Vec<Vec<f64>>, sample_size: u32) -> Vec<f64> {
         let mut rng = rand::thread_rng();
         utils::infer_changepoints(&rs, sample_size as usize, &mut rng).unwrap()
     }
 
-    #[pyfn(m, "infer_pseudo_cmf_changepoints")]
+    #[pyfn(m)]
+    #[pyo3(name = "infer_pseudo_cmf_changepoints")]
     fn infer_pseudo_cmf_changepoints(
         rs: Vec<Vec<f64>>,
         sample_size: u32,
@@ -28,7 +30,8 @@ fn pychangepoint(_py: Python, m: &PyModule) -> PyResult<()> {
         .unwrap()
     }
 
-    #[pyfn(m, "map_changepoints")]
+    #[pyfn(m)]
+    #[pyo3(name = "map_changepoints")]
     fn map_changepoints(rs: Vec<Vec<f64>>) -> Vec<usize> {
         utils::map_changepoints(&rs)
     }
