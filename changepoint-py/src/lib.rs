@@ -1,3 +1,4 @@
+pub mod argpcpd;
 pub mod bocpd;
 
 use changepoint::utils;
@@ -5,8 +6,10 @@ use pyo3::prelude::*;
 
 #[pymodule]
 fn pychangepoint(_py: Python, m: &PyModule) -> PyResult<()> {
-    m.add_class::<bocpd::BocpdNg>()?;
     m.add_class::<bocpd::Ng>()?;
+    m.add_class::<bocpd::BocpdNg>()?;
+    m.add_class::<argpcpd::KernelArgs>()?;
+    m.add_class::<argpcpd::ArgpCpd>()?;
 
     #[pyfn(m)]
     #[pyo3(name = "infer_changepoints")]
