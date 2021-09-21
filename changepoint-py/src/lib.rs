@@ -6,9 +6,7 @@ use pyo3::prelude::*;
 
 #[pymodule]
 fn pychangepoint(_py: Python, m: &PyModule) -> PyResult<()> {
-    m.add_class::<bocpd::Ng>()?;
     m.add_class::<bocpd::BocpdNg>()?;
-    m.add_class::<argpcpd::KernelArgs>()?;
     m.add_class::<argpcpd::ArgpCpd>()?;
 
     #[pyfn(m)]

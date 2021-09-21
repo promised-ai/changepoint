@@ -13,7 +13,7 @@ $ pip install maturin
 To install the package, navigate to the `changepoint-py` directory and run
 
 ```
-$ maturin develop
+$ maturin develop --release
 ```
 
 ## Example
@@ -21,8 +21,7 @@ $ maturin develop
 ```python
 import pychangepoint as pycpt
 
-ng = pycpt.Ng(0.0, 1.0, 1.0, 1.0);
-bocpd = pycpt.BocpdNg(50, ng);
+bocpd = pycpt.BocpdNg(50);
 
 data = [
     1.0, 2.0, 1.0, 2.0, 1.5, 1.5, 1.0, 2.0,

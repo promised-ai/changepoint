@@ -1,41 +1,42 @@
 use changepoint::{Bocpd, BocpdLike};
+use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use rv::dist::{Gaussian, NormalGamma};
 
+/// Online Bayesian Change Point Detection state container with Normal Gamma
+/// prior
 #[pyclass]
 pub struct BocpdNg {
     bocpd: Bocpd<f64, Gaussian, NormalGamma>,
 }
 
-#[pyclass]
-#[derive(Clone)]
-pub struct Ng {
-    #[pyo3(get, set)]
-    m: f64,
-    #[pyo3(get, set)]
-    r: f64,
-    #[pyo3(get, set)]
-    s: f64,
-    #[pyo3(get, set)]
-    v: f64,
-}
-
-#[pymethods]
-impl Ng {
-    #[new]
-    pub fn new(m: f64, r: f64, s: f64, v: f64) -> Self {
-        Ng { m, r, s, v }
-    }
-}
-
 #[pymethods]
 impl BocpdNg {
+    /// Create a new BOCPD with Normal Gamma Prior
+    ///
+    /// Parameters
+    /// ----------
+    /// m: float
+    ///     The prior mean
+    /// r: float
+    ///     Relative precision of μ versus data
+    /// s: float
+    ///     The mean of rho (the precision) is v/s.
+    /// v: float
+    ///     Degrees of freedom of precision of rho
+    ///
+    /// Raises
+    /// ------
+    /// ValueError: Invalid parameters
     #[new]
-    pub fn new(lambda: f64, ng: Ng) -> Self {
-        let pr = NormalGamma::new_unchecked(ng.m, ng.r, ng.s, ng.v);
-        BocpdNg {
+    #[args(m = "0.0", r = "1.0", s = "1.0", v = "1.0")]
+    pub fn new(lambda: f64, m: f64, r: f64, s: f64, v: f64) -> PyResult<Self> {
+        let pr = NormalGamma::new(m, r, s, v)
+            .map_err(|err| PyValueError::new_err(format!("{}", err)))?;
+
+        Ok(BocpdNg {
             bocpd: Bocpd::new(lambda, pr),
-        }
+        })
     }
 
     pub fn reset(&mut self) {
