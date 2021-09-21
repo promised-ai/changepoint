@@ -4,7 +4,7 @@ use rv::prelude::*;
 use std::convert::TryInto;
 
 fn bench_online_bayesian(c: &mut Criterion) {
-    let raw_data: &str = include_str!("../resources/TB3MS.csv");
+    let raw_data: &str = include_str!("../../resources/TB3MS.csv");
     let data: Vec<f64> = raw_data
         .lines()
         .skip(1)

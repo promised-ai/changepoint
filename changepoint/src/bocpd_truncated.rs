@@ -5,17 +5,21 @@
 //! Which can be found [here](https://arxiv.org/pdf/0710.3742.pdf).
 
 use crate::traits::BocpdLike;
-use rand::{prelude::SmallRng, SeedableRng};
+use rand::{rngs::SmallRng, SeedableRng};
 use rv::prelude::*;
 use std::collections::VecDeque;
 
 #[cfg(feature = "serde1")]
 use serde::{Deserialize, Serialize};
 
-/// Online Bayesian Change Point Detection state container
+/// Online Bayesian Change Point Detection with a truncated tail
+///
+/// The truncation takes place after run length probabilites are computed.
+/// The truncation point is chosen based on the most recent point from which
+/// all successive mass is below the given threshold.
 #[cfg_attr(feature = "serde1", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
-pub struct Bocpd<X, Fx, Pr>
+pub struct BocpdTruncated<X, Fx, Pr>
 where
     Fx: Rv<X> + HasSuffStat<X>,
     Pr: ConjugatePrior<X, Fx>,
@@ -24,14 +28,14 @@ where
     hazard: f64,
     predictive_prior: Pr,
     suff_stats: VecDeque<Fx::Stat>,
-    t: usize,
+    initial_suffstat: Option<Fx::Stat>,
     r: Vec<f64>,
     empty_suffstat: Fx::Stat,
-    initial_suffstat: Option<Fx::Stat>,
     cdf_threshold: f64,
+    cutoff_threadhold: f64,
 }
 
-impl<X, Fx, Pr> Bocpd<X, Fx, Pr>
+impl<X, Fx, Pr> BocpdTruncated<X, Fx, Pr>
 where
     Fx: Rv<X> + HasSuffStat<X>,
     Pr: ConjugatePrior<X, Fx, Posterior = Pr> + Clone,
@@ -40,15 +44,15 @@ where
     /// Create a new Bocpd analyzer
     ///
     /// # Parameters
-    /// * `hazard` - The hazard function for `P_{gap}`.
+    /// * `hazard` - The hazard function for `P_{gap} = 1/hazard`.
     /// * `predictive_prior` - Prior for the predictive distribution.
     ///
     /// # Example
     /// ```rust
-    /// use changepoint::Bocpd;
+    /// use changepoint::BocpdTruncated;
     /// use rv::prelude::*;
     ///
-    /// let cpd = Bocpd::new(
+    /// let cpd = BocpdTruncated::new(
     ///     250.0,
     ///     NormalGamma::new_unchecked(0.0, 1.0, 1.0, 1.0),
     /// );
@@ -62,11 +66,19 @@ where
             hazard: hazard_lambda.recip(),
             predictive_prior,
             suff_stats: VecDeque::new(),
-            t: 0,
             r: Vec::new(),
             empty_suffstat,
             cdf_threshold: 1E-3,
+            cutoff_threadhold: 1E-6,
             initial_suffstat: None,
+        }
+    }
+
+    /// Change the cutoff for mass to be discarded on the tail end of run-lengths
+    pub fn with_cutoff(self, cutoff_threadhold: f64) -> Self {
+        Self {
+            cutoff_threadhold,
+            ..self
         }
     }
 
@@ -75,7 +87,14 @@ where
         self.predictive_prior = predictive_prior;
         self.reset();
     }
+}
 
+impl<X, Fx, Pr> BocpdTruncated<X, Fx, Pr>
+where
+    Fx: Rv<X> + HasSuffStat<X>,
+    Pr: ConjugatePrior<X, Fx, Posterior = Pr> + Clone,
+    Fx::Stat: Clone,
+{
     /// Reduce the observed values into a new BOCPD with those observed values integrated into the
     /// prior.
     pub fn collapse_stats(self) -> Self {
@@ -83,14 +102,12 @@ where
             self.predictive_prior.clone(),
             |suff_stat| {
                 self.predictive_prior
-                    .clone()
                     .posterior(&DataOrSuffStat::SuffStat(suff_stat))
             },
         );
 
         Self {
             suff_stats: VecDeque::new(),
-            t: 0,
             r: vec![],
             predictive_prior: new_prior,
             ..self
@@ -98,7 +115,7 @@ where
     }
 }
 
-impl<X, Fx, Pr> BocpdLike<X> for Bocpd<X, Fx, Pr>
+impl<X, Fx, Pr> BocpdLike<X> for BocpdTruncated<X, Fx, Pr>
 where
     Fx: Rv<X> + HasSuffStat<X>,
     Pr: ConjugatePrior<X, Fx, Posterior = Pr> + Clone,
@@ -107,15 +124,9 @@ where
     type Fx = Fx;
     type PosteriorPredictive = Mixture<Pr>;
 
-    fn reset(&mut self) {
-        self.suff_stats.clear();
-        self.t = 0;
-        self.r.clear();
-    }
-
     /// Update the model with a new datum and return the distribution of run lengths.
     fn step(&mut self, data: &X) -> &[f64] {
-        if self.t == 0 {
+        if self.r.is_empty() {
             self.suff_stats.push_front(
                 self.initial_suffstat
                     .clone()
@@ -130,11 +141,11 @@ where
             let mut r_sum = 0.0;
             let mut r_seen = 0.0;
 
-            for i in (0..self.t).rev() {
+            for i in (0..(self.r.len() - 1)).rev() {
                 if self.r[i] == 0.0 {
                     self.r[i + 1] = 0.0;
                 } else {
-                    // Evaluate growth probabilities and shift probabilities down
+                    // Evaluate growth probabilites and shift probabilities down
                     // scaling by the hazard function and the predprobs
                     let pp = self
                         .predictive_prior
@@ -161,8 +172,32 @@ where
             self.r[0] = r0;
 
             // Normalize R
-            for i in 0..=self.t {
+            for i in 0..self.r.len() {
                 self.r[i] /= r_sum;
+            }
+
+            // Truncate
+            let cutoff = self
+                .r
+                .iter()
+                .rev()
+                .scan(0.0, |acc, p| {
+                    *acc += p;
+                    Some(*acc)
+                })
+                .enumerate()
+                .find(|(_, cdf)| *cdf > self.cutoff_threadhold)
+                .map(|x| self.r.len() - x.0 + 1);
+
+            if let Some(trunc_index) = cutoff {
+                self.r.truncate(trunc_index);
+                self.suff_stats.truncate(trunc_index);
+
+                // Renormalize r
+                let this_r_sum: f64 = self.r.iter().sum();
+                for i in 0..self.r.len() {
+                    self.r[i] /= this_r_sum;
+                }
             }
         }
 
@@ -171,10 +206,16 @@ where
             .iter_mut()
             .for_each(|stat| stat.observe(data));
 
-        // Update total sequence length
-        self.t += 1;
-
+        debug_assert!(
+            !self.r.iter().any(|x| x.is_nan()),
+            "Resulting run-length probabilities cannot contain NaNs"
+        );
         &self.r
+    }
+
+    fn reset(&mut self) {
+        self.suff_stats.clear();
+        self.r.clear();
     }
 
     fn pp(&self) -> Self::PosteriorPredictive {
@@ -213,41 +254,46 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::utils::{infer_changepoints, map_changepoints, max_error};
-    use crate::{generators, BocpdLike};
+    use crate::generators;
+    use crate::utils::*;
+    use rand::rngs::StdRng;
     use rand::SeedableRng;
 
     #[test]
     fn each_vec_is_a_probability_dist() {
-        let mut rng: SmallRng = SmallRng::seed_from_u64(0xABCD);
+        let mut rng: StdRng = StdRng::seed_from_u64(0xABCD);
         let data = generators::discontinuous_jump(
             &mut rng, 0.0, 1.0, 10.0, 5.0, 500, 1000,
         );
 
-        let mut cpd =
-            Bocpd::new(250.0, NormalGamma::new(0.0, 1.0, 1.0, 1.0).unwrap());
+        let mut cpd = BocpdTruncated::new(
+            250.0,
+            NormalGamma::new(0.0, 1.0, 1.0, 1.0).unwrap(),
+        );
 
         let res: Vec<Vec<f64>> =
             data.iter().map(|d| cpd.step(d).to_vec()).collect();
 
         for row in res.iter() {
             let sum: f64 = row.iter().sum();
-            assert::close(sum, 1.0, 1E-8);
+            assert::close(sum, 1.0, 1E-6);
         }
     }
 
     #[test]
     fn detect_obvious_switch() {
-        let mut rng: SmallRng = SmallRng::seed_from_u64(0xABCD);
+        let mut rng: StdRng = StdRng::seed_from_u64(0xABCD);
         let data = generators::discontinuous_jump(
             &mut rng, 0.0, 1.0, 10.0, 5.0, 500, 700,
         );
 
-        let mut cpd =
-            Bocpd::new(250.0, NormalGamma::new_unchecked(0.0, 1.0, 1.0, 1.0));
+        let mut cpd = BocpdTruncated::new(
+            250.0,
+            NormalGamma::new_unchecked(0.0, 1.0, 1.0, 1.0),
+        );
 
         let rs: Vec<Vec<f64>> =
-            data.iter().map(|d| cpd.step(d).into()).collect();
+            data.iter().map(|d| (*cpd.step(d)).into()).collect();
         let change_points = map_changepoints(&rs);
 
         let error = max_error(&change_points, &[0, 499]);
@@ -255,28 +301,11 @@ mod tests {
     }
 
     #[test]
-    fn detect_obvious_switch_p_cp(
-    ) -> Result<(), Box<dyn std::error::Error + 'static>> {
-        let mut rng = SmallRng::seed_from_u64(0xABCD);
-        let data = generators::discontinuous_jump(
-            &mut rng, 0.0, 1.0, 10.0, 5.0, 500, 700,
-        );
-
-        let mut cpd =
-            Bocpd::new(250.0, NormalGamma::new_unchecked(0.0, 1.0, 1.0, 1.0));
-
-        let rs: Vec<Vec<f64>> =
-            data.iter().map(|d| cpd.step(d).to_vec()).collect();
-        let p_cp = infer_changepoints(&rs, 30, &mut rng)?;
-        assert!(p_cp[499] > 0.5);
-        Ok(())
-    }
-
-    #[test]
     fn coal_mining_data() {
         let data = generators::coal_mining_incidents();
 
-        let mut cpd = Bocpd::new(100.0, Gamma::new_unchecked(1.0, 1.0));
+        let mut cpd =
+            BocpdTruncated::new(100.0, Gamma::new_unchecked(1.0, 1.0));
 
         let rs: Vec<Vec<f64>> =
             data.iter().map(|d| cpd.step(d).into()).collect();
@@ -294,7 +323,7 @@ mod tests {
     /// > https://fred.stlouisfed.org/series/TB3MS, March 24, 2020.
     #[test]
     fn treasury_changes() -> Result<(), Box<dyn std::error::Error + 'static>> {
-        let raw_data: &str = include_str!("../resources/TB3MS.csv");
+        let raw_data: &str = include_str!("../../resources/TB3MS.csv");
         let data: Vec<f64> = raw_data
             .lines()
             .skip(1)
@@ -303,7 +332,9 @@ mod tests {
                 line.parse().unwrap()
             })
             .collect();
-        let mut cpd = Bocpd::new(250.0, NormalGamma::new(0.0, 1.0, 1.0, 1.0)?);
+
+        let mut cpd =
+            BocpdTruncated::new(250.0, NormalGamma::new(0.0, 1.0, 1.0, 1.0)?);
 
         let rs: Vec<Vec<f64>> = data
             .iter()

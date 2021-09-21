@@ -3,9 +3,8 @@
 //!  * Autoregressive Gaussian CPD as `Argpcpd`
 #![warn(missing_docs)]
 
-// Test the README
-use doc_comment::doctest;
-doctest!("../README.md");
+#[cfg(test)]
+pub mod generators;
 
 mod bocpd;
 pub use bocpd::*;
@@ -18,9 +17,6 @@ pub use bocpd_truncated::*;
 
 pub mod gp;
 pub use gp::*;
-
-#[cfg(test)]
-pub mod generators;
 
 pub mod utils;
 

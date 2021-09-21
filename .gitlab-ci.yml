@@ -9,6 +9,6 @@ test:cargo-stable:
     image: "rust:1.52"
     script:
         - rustc --version && cargo --version
-        - cargo build --all --all-features
-        - time cargo test --jobs 1 --all-features
+        - cargo build --all --all-features --no-default-features
+        - time cargo test --jobs 1 --all-features --no-default-features
         - cargo bench -- --test
