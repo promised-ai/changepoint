@@ -2,6 +2,8 @@
 //!  * Online Bayesian CPD as `Bocpd`
 //!  * Autoregressive Gaussian CPD as `Argpcpd`
 #![warn(missing_docs)]
+#![warn(clippy::pedantic)]
+#![allow(clippy::cast_precision_loss)]
 
 #[cfg(test)]
 pub mod generators;

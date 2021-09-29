@@ -98,7 +98,7 @@ pub fn infer_changepoints<R: Rng>(
     let n = rs.len();
     let dists: Vec<Categorical> =
         rs.iter()
-            .map(|r| Categorical::new(&r))
+            .map(|r| Categorical::new(r))
             .collect::<Result<Vec<Categorical>, CategoricalError>>()?;
 
     let counts: Vec<usize> =

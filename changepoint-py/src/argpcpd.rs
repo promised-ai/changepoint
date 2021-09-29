@@ -7,6 +7,8 @@ use rv::process::gaussian::kernel::{
 };
 
 /// Autoregressive Gaussian Process Change Point detection
+///
+/// Based on Ryan Turner's [thesis](https://www.repository.cam.ac.uk/bitstream/handle/1810/242181/thesis.pdf?sequence=1&isAllowed=y).
 #[pyclass]
 pub struct ArgpCpd {
     argpcpd: Argpcp<
@@ -17,6 +19,17 @@ pub struct ArgpCpd {
 #[pymethods]
 impl ArgpCpd {
     /// Create a new Argpcp
+    ///
+    /// # Arguments
+    /// * `scale` - Scale of the `ConstantKernel`.
+    /// * `length_scale` - Length Scale of `RBFKernel`.
+    /// * `noise_level` - Noise std for the `WhiteKernel`
+    /// * `max_lag` - Maximum Autoregressive lag.
+    /// * `alpha0` - Scale Gamma distribution alpha parameter.
+    /// * `beta0` - Scale Gamma distribution beta parameter.
+    /// * `logistic_hazard_h` - Hazard scale in logit units.
+    /// * `logistic_hazard_a` - Roughtly the slope of the logistic hazard function.
+    /// * `logistic_hazard_b` - The offset of the logistic hazard function.
     #[new]
     #[args(
         scale = "0.5",

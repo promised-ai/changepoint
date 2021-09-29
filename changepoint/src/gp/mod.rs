@@ -33,29 +33,36 @@ where
 }
 
 fn truncate_r(x: &[f64], epsilon: f64) -> Vec<f64> {
-    if let Some(last_larger) = x
-        .iter()
+    x.iter()
         .enumerate()
         .rev()
         .find(|p| p.1 > &epsilon)
         .map(|q| q.0)
-    {
-        let mut truncated = x.split_at(last_larger + 1).0.to_vec();
-        let z: f64 = truncated.iter().sum();
-        truncated.iter_mut().for_each(|p| *p /= z);
-        truncated
-    } else {
-        x.to_vec()
-    }
+        .map_or_else(
+            || x.to_vec(),
+            |last_larger| {
+                let mut truncated = x.split_at(last_larger + 1).0.to_vec();
+                let z: f64 = truncated.iter().sum();
+                truncated.iter_mut().for_each(|p| *p /= z);
+                truncated
+            },
+        )
 }
 
 /// Logistic Hazard parameters with `compute`
+///
+/// LH(x, h, a, b) = logistic(h) * logistic(a * x + b)
+///
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde1", derive(Serialize, Deserialize))]
 #[must_use]
 pub struct LogisticHazard {
+    /// Logit scaled, scaling factor for the logistic hazard function (increasing increases hazard
+    /// over the whole space).
     h: f64,
+    /// Scale Term (Higher means the slope of the logistic is higher).
     a: f64,
+    /// Translation term (increasing moves the logistic to the left).
     b: f64,
 }
 
@@ -88,9 +95,13 @@ where
 {
     /// Number of steps observed
     t: usize,
+    /// Run length probabilities
     run_length_pr: Vec<f64>,
+    /// Kernel Function
     kernel: K,
+    /// Observations
     obs: Vec<f64>,
+    /// Maximum autoregressive lag
     max_lag: usize,
     mrc: usize,
     u: DMatrix<f64>,
@@ -99,6 +110,7 @@ where
     /// Scale Gamma beta parameter
     beta0: f64,
     last_nlml: DVector<f64>,
+    /// Logistic Hazard function parameters
     log_hazard: LogisticHazard,
     preds: Vec<StudentT>,
     alpha: DMatrix<f64>,
@@ -112,7 +124,15 @@ where
     K: Kernel,
 {
     /// Create a new Argpcp
-    /// TODO
+    ///
+    /// # Arguments
+    /// * `kernel` - Kernel Function.
+    /// * `max_lag` - Maximum Autoregressive lag.
+    /// * `alpha0` - Scale Gamma distribution alpha parameter.
+    /// * `beta0` - Scale Gamma distribution beta parameter.
+    /// * `h` - Hazard scale in logit units.
+    /// * `a` - Roughtly the slope of the logistic hazard function.
+    /// * `b` - The offset of the logistic hazard function.
     pub fn new(
         kernel: K,
         max_lag: usize,
@@ -208,6 +228,7 @@ where
     type Fx = Gaussian;
     type PosteriorPredictive = NormalGamma;
 
+    #[allow(clippy::too_many_lines)]
     fn step(&mut self, value: &f64) -> &[f64] {
         self.obs.push(*value);
         self.t += 1;
@@ -270,7 +291,7 @@ where
                         vkac,
                         bda * (kss - vvc),
                         2.0 * at,
-                    ))
+                    ));
                 });
         }
 
@@ -301,7 +322,7 @@ where
                 .skip(self.t - self.mrc)
                 .rev()
                 .take(self.mrc)
-                .cloned(), //.chain(std::iter::once(0.0)),
+                .copied(), //.chain(std::iter::once(0.0)),
         );
         self.alpha = chol_solve(&self.u, &rev_y);
         let t: DMatrix<f64> = DMatrix::from_iterator(
@@ -358,9 +379,9 @@ where
 
         // Normalize the run-length probabilities
         let z: f64 = next_r.iter().sum();
-        next_r.iter_mut().for_each(|x| {
+        for x in &mut next_r {
             *x /= z;
-        });
+        }
 
         // Prune R according to a probability cutoff
         // NOTE: add a max length parameter?
@@ -399,8 +420,8 @@ where
 {
     let r_out = R::from_usize(mat.nrows());
     let c_out = C::from_usize(mat.ncols());
-    let cols: Vec<Vec<N>> = (0..mat.ncols())
-        .map(move |col_idx| {
+    let it = (0..mat.ncols())
+        .map::<Vec<N>, _>(move |col_idx| {
             let col = mat.column(col_idx);
             col.into_iter()
                 .scan(N::zero(), |state, x| {
@@ -409,10 +430,6 @@ where
                 })
                 .collect()
         })
-        .collect();
-
-    let it = cols
-        .into_iter()
         .flat_map(std::iter::IntoIterator::into_iter);
 
     MatrixMN::from_iterator_generic(r_out, c_out, it)
@@ -505,7 +522,7 @@ mod tests {
             3,
             &[0, 0, 0, 1, 0, 0, 2, 1, 0, 3, 2, 1, 4, 3, 2],
         );
-        assert_eq!(lagmat, expected)
+        assert_eq!(lagmat, expected);
     }
 
     fn logit(x: f64) -> f64 {
