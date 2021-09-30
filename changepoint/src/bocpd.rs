@@ -51,8 +51,11 @@ where
     /// Create a new Bocpd analyzer
     ///
     /// # Parameters
-    /// * `hazard` - The hazard function for `P_{gap}`.
-    /// * `predictive_prior` - Prior for the predictive distribution.
+    /// * `hazard` - 1/ `hazard` is the probability of the next step being a change-point.
+    /// Therefore, the larger the value, the lower the prior probability is for the any point to be
+    /// a change-point. Mean run-length is `lambda - 1`.
+    /// * `predictive_prior` - Prior for the predictive distribution. This should match your
+    /// observed data.
     ///
     /// # Example
     /// ```rust

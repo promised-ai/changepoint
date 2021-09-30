@@ -33,20 +33,16 @@ where
 }
 
 fn truncate_r(x: &[f64], epsilon: f64) -> Vec<f64> {
-    x.iter()
-        .enumerate()
-        .rev()
-        .find(|p| p.1 > &epsilon)
-        .map(|q| q.0)
-        .map_or_else(
-            || x.to_vec(),
-            |last_larger| {
-                let mut truncated = x.split_at(last_larger + 1).0.to_vec();
-                let z: f64 = truncated.iter().sum();
-                truncated.iter_mut().for_each(|p| *p /= z);
-                truncated
-            },
-        )
+    x.iter().rev().position(|p| p > &epsilon).map_or_else(
+        || x.to_vec(),
+        |last_larger| {
+            let truncate_idx = x.len() - last_larger;
+            let mut truncated = x.split_at(truncate_idx).0.to_vec();
+            let z: f64 = truncated.iter().sum();
+            truncated.iter_mut().for_each(|p| *p /= z);
+            truncated
+        },
+    )
 }
 
 /// Logistic Hazard parameters with `compute`
@@ -130,8 +126,9 @@ where
     /// * `max_lag` - Maximum Autoregressive lag.
     /// * `alpha0` - Scale Gamma distribution alpha parameter.
     /// * `beta0` - Scale Gamma distribution beta parameter.
-    /// * `h` - Hazard scale in logit units.
-    /// * `a` - Roughtly the slope of the logistic hazard function.
+    /// * `h` - Hazard scale in logit units (more negative leads to larger run-lengths).
+    /// * `a` - Roughtly the slope of the logistic hazard function (increasing increases variance
+    /// of run-lengths).
     /// * `b` - The offset of the logistic hazard function.
     pub fn new(
         kernel: K,
@@ -322,7 +319,7 @@ where
                 .skip(self.t - self.mrc)
                 .rev()
                 .take(self.mrc)
-                .copied(), //.chain(std::iter::once(0.0)),
+                .copied(),
         );
         self.alpha = chol_solve(&self.u, &rev_y);
         let t: DMatrix<f64> = DMatrix::from_iterator(
