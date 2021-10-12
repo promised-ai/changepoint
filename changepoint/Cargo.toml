@@ -10,7 +10,7 @@ repository = "https://gitlab.com/Redpoll/changepoint"
 keywords = ["CPD", "Bayesian", "Machine-Learning", "Statistics"]
 categories = ["science"]
 license = "MIT"
-readme = "README.md"
+readme = "../README.md"
 description = "Change Point Detection in Rust"
 
 [badges]
