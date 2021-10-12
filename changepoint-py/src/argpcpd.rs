@@ -7,6 +7,8 @@ use rv::process::gaussian::kernel::{
 };
 
 /// Autoregressive Gaussian Process Change Point detection
+///
+/// Based on Ryan Turner's [thesis](https://www.repository.cam.ac.uk/bitstream/handle/1810/242181/thesis.pdf?sequence=1&isAllowed=y).
 #[pyclass]
 pub struct ArgpCpd {
     argpcpd: Argpcp<
@@ -17,6 +19,27 @@ pub struct ArgpCpd {
 #[pymethods]
 impl ArgpCpd {
     /// Create a new Argpcp
+    ///
+    /// Parameters
+    /// ----------
+    /// scale: float
+    ///     Scale of the `ConstantKernel`
+    /// length_scale:float
+    ///     Length Scale of `RBFKernel`
+    /// noise_level: float
+    ///     Noise standard deviation for the `WhiteKernel`
+    /// max_lag: int > 0
+    ///     Maximum Autoregressive lag
+    /// alpha0 : float
+    ///     Scale Gamma distribution alpha parameter
+    /// beta0: float
+    ///     Scale Gamma distribution beta parameter
+    /// logistic_hazard_h: float
+    ///     Hazard scale in logit units.
+    /// logistic_hazard_a: float
+    ///     Roughly the slope of the logistic hazard function
+    /// logistic_hazard_b: float
+    ///     The offset of the logistic hazard function.
     #[new]
     #[args(
         scale = "0.5",
@@ -62,10 +85,12 @@ impl ArgpCpd {
         })
     }
 
+    /// Reset the argpcpd to starting state
     pub fn reset(&mut self) {
         self.argpcpd.reset()
     }
 
+    /// Observe a new datum and return the run length probabilities
     pub fn step(&mut self, datum: f64) -> Vec<f64> {
         self.argpcpd.step(&datum).to_vec()
     }

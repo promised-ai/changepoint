@@ -12,7 +12,7 @@ use std::collections::VecDeque;
 #[cfg(feature = "serde1")]
 use serde::{Deserialize, Serialize};
 
-/// Online Bayesian Change Point Detection state container
+/// Online Bayesian Change Point Detection state container.
 #[cfg_attr(feature = "serde1", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug)]
 pub struct Bocpd<X, Fx, Pr>
@@ -21,13 +21,24 @@ where
     Pr: ConjugatePrior<X, Fx>,
     Fx::Stat: Clone,
 {
+    /// Geometric distribution timescale used as the Hazard Function.
+    /// \[
+    ///     H(\tao) = 1/\lambda
+    /// \] where `hazard` is $\lambda$.
     hazard: f64,
+    /// Probability of observing data type `X` i.e. $\pi^{(r)}_t = P(x_t | suff_stat)$.
     predictive_prior: Pr,
+    /// Sequence of sufficient statistics representing cumulative states.
     suff_stats: VecDeque<Fx::Stat>,
+    /// Current time step
     t: usize,
+    /// Run-length probabilities.
     r: Vec<f64>,
+    /// Reference empty suff_stats.
     empty_suffstat: Fx::Stat,
+    /// Initial suff_stat
     initial_suffstat: Option<Fx::Stat>,
+    /// Cumulative CDF values are dropped after this threshold.
     cdf_threshold: f64,
 }
 
@@ -40,8 +51,11 @@ where
     /// Create a new Bocpd analyzer
     ///
     /// # Parameters
-    /// * `hazard` - The hazard function for `P_{gap}`.
-    /// * `predictive_prior` - Prior for the predictive distribution.
+    /// * `hazard` - 1/ `hazard` is the probability of the next step being a change-point.
+    /// Therefore, the larger the value, the lower the prior probability is for the any point to be
+    /// a change-point. Mean run-length is `lambda - 1`.
+    /// * `predictive_prior` - Prior for the predictive distribution. This should match your
+    /// observed data.
     ///
     /// # Example
     /// ```rust
@@ -198,7 +212,7 @@ where
                         .posterior(&DataOrSuffStat::SuffStat(ss))
                 })
                 .collect();
-            Mixture::new(self.r.to_vec(), dists)
+            Mixture::new(self.r.clone(), dists)
                 .expect("The mixture could not be constructed")
         }
     }
@@ -230,7 +244,7 @@ mod tests {
         let res: Vec<Vec<f64>> =
             data.iter().map(|d| cpd.step(d).to_vec()).collect();
 
-        for row in res.iter() {
+        for row in &res {
             let sum: f64 = row.iter().sum();
             assert::close(sum, 1.0, 1E-8);
         }
@@ -291,7 +305,7 @@ mod tests {
     /// # Data Source
     /// > Board of Governors of the Federal Reserve System (US), 3-Month Treasury Bill: Secondary
     /// > Market Rate [TB3MS], retrieved from FRED, Federal Reserve Bank of St. Louis;
-    /// > https://fred.stlouisfed.org/series/TB3MS, March 24, 2020.
+    /// > <https://fred.stlouisfed.org/series/TB3MS>, March 24, 2020.
     #[test]
     fn treasury_changes() -> Result<(), Box<dyn std::error::Error + 'static>> {
         let raw_data: &str = include_str!("../../resources/TB3MS.csv");
