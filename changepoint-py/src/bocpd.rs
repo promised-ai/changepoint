@@ -4,7 +4,7 @@ use pyo3::prelude::*;
 use rv::dist::{Gaussian, NormalGamma};
 
 /// Online Bayesian Change Point Detection state container with Normal Gamma
-/// prior
+/// prior with parameters `m`, `r`, `s` and `v`.
 #[pyclass]
 pub struct BocpdNg {
     bocpd: Bocpd<f64, Gaussian, NormalGamma>,
@@ -16,6 +16,9 @@ impl BocpdNg {
     ///
     /// Parameters
     /// ----------
+    /// lambda: float
+    ///     Expected mean run length. A smaller value means changepoints are
+    ///     believed to occur at shorter intervals.
     /// m: float
     ///     The prior mean
     /// r: float
@@ -39,10 +42,12 @@ impl BocpdNg {
         })
     }
 
+    /// Reset the Bocpd to the new state
     pub fn reset(&mut self) {
         self.bocpd.reset()
     }
 
+    /// Observe a new datum. Returns the runlength probabilities for each step.
     pub fn step(&mut self, datum: f64) -> Vec<f64> {
         self.bocpd.step(&datum).to_vec()
     }

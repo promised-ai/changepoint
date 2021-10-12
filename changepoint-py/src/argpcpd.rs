@@ -20,16 +20,26 @@ pub struct ArgpCpd {
 impl ArgpCpd {
     /// Create a new Argpcp
     ///
-    /// # Arguments
-    /// * `scale` - Scale of the `ConstantKernel`.
-    /// * `length_scale` - Length Scale of `RBFKernel`.
-    /// * `noise_level` - Noise std for the `WhiteKernel`
-    /// * `max_lag` - Maximum Autoregressive lag.
-    /// * `alpha0` - Scale Gamma distribution alpha parameter.
-    /// * `beta0` - Scale Gamma distribution beta parameter.
-    /// * `logistic_hazard_h` - Hazard scale in logit units.
-    /// * `logistic_hazard_a` - Roughtly the slope of the logistic hazard function.
-    /// * `logistic_hazard_b` - The offset of the logistic hazard function.
+    /// Parameters
+    /// ----------
+    /// scale: float
+    ///     Scale of the `ConstantKernel`
+    /// length_scale:float
+    ///     Length Scale of `RBFKernel`
+    /// noise_level: float
+    ///     Noise standard deviation for the `WhiteKernel`
+    /// max_lag: int > 0
+    ///     Maximum Autoregressive lag
+    /// alpha0 : float
+    ///     Scale Gamma distribution alpha parameter
+    /// beta0: float
+    ///     Scale Gamma distribution beta parameter
+    /// logistic_hazard_h: float
+    ///     Hazard scale in logit units.
+    /// logistic_hazard_a: float
+    ///     Roughly the slope of the logistic hazard function
+    /// logistic_hazard_b: float
+    ///     The offset of the logistic hazard function.
     #[new]
     #[args(
         scale = "0.5",
@@ -75,10 +85,12 @@ impl ArgpCpd {
         })
     }
 
+    /// Reset the argpcpd to starting state
     pub fn reset(&mut self) {
         self.argpcpd.reset()
     }
 
+    /// Observe a new datum and return the run length probabilities
     pub fn step(&mut self, datum: f64) -> Vec<f64> {
         self.argpcpd.step(&datum).to_vec()
     }
