@@ -3,7 +3,6 @@ name = "changepoint-py"
 description = "A Python module for changepoint"
 version = "0.1.0"
 repository = "https://gitlab.com/Redpoll/changepoint"
-keywords = ["rng", "wyrand", "pcg", "chacha", "random", "pcg64"]
 authors = ["Redpoll <info@redpoll.ai>"]
 edition = "2018"
 license = "MIT"
