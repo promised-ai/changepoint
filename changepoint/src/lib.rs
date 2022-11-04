@@ -23,3 +23,4 @@ pub use gp::*;
 pub mod utils;
 
 pub use rv;
+pub use rv::nalgebra;

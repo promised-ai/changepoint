@@ -2,12 +2,20 @@ pub mod argpcpd;
 pub mod bocpd;
 
 use changepoint::utils;
+use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 
 #[pymodule]
 fn pychangepoint(_py: Python, m: &PyModule) -> PyResult<()> {
-    m.add_class::<bocpd::BocpdNg>()?;
+    m.add_class::<bocpd::Prior>()?;
+    m.add_class::<bocpd::Bocpd>()?;
     m.add_class::<argpcpd::ArgpCpd>()?;
+    m.add_function(wrap_pyfunction!(bocpd::normal_gamma, m)?)?;
+    m.add_function(wrap_pyfunction!(bocpd::normal_inv_gamma, m)?)?;
+    m.add_function(wrap_pyfunction!(bocpd::normal_inv_chi_squared, m)?)?;
+    m.add_function(wrap_pyfunction!(bocpd::normal_inv_wishart, m)?)?;
+    m.add_function(wrap_pyfunction!(bocpd::poisson_gamma, m)?)?;
+    m.add_function(wrap_pyfunction!(bocpd::beta_bernoulli, m)?)?;
 
     /// Given the runlength probabilities vector for each step, and a Monte
     /// Carlo step size, return the probability that a change point occurred on

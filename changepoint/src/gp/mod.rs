@@ -3,15 +3,15 @@
 use std::{f64::consts::PI, ops::AddAssign};
 
 use crate::BocpdLike;
-use nalgebra::{
-    allocator::Allocator, constraint::SameNumberOfRows,
-    constraint::ShapeConstraint, storage::StorageMut, ComplexField, DMatrix,
-    DVector, DefaultAllocator, Dim, Matrix, MatrixMN, Scalar, Vector, U1,
-};
 use num_traits::Zero;
 use rv::{
     prelude::{Gaussian, NormalGamma, Rv, StudentsT as RvStudentsT},
     process::gaussian::kernel::Kernel,
+};
+use rv::nalgebra::{
+    allocator::Allocator, constraint::SameNumberOfRows,
+    constraint::ShapeConstraint, storage::StorageMut, ComplexField, DMatrix,
+    DVector, DefaultAllocator, Dim, Matrix, MatrixMN, Scalar, Vector, U1,
 };
 use special::Gamma;
 
@@ -438,7 +438,7 @@ fn rank_one_update<N, Dm, Sm, Rx, Sx>(
     x: &mut Vector<N, Rx, Sx>,
     sigma: N::RealField,
 ) where
-    N: ComplexField,
+    N: ComplexField + Copy,
     Dm: Dim,
     Rx: Dim,
     Sm: StorageMut<N, Dm, Dm>,
@@ -452,30 +452,31 @@ fn rank_one_update<N, Dm, Sm, Rx, Sx>(
         "The input vector must be of the same size as the factorized matrix."
     );
 
-    let mut beta = nalgebra::one::<N::RealField>();
+    let mut beta = rv::nalgebra::one::<N::RealField>();
 
+    // FIXME: too many clones!
     for j in 0..n {
         // updates the diagonal
         let diag = N::real(unsafe { *chol.get_unchecked((j, j)) });
-        let diag2 = diag * diag;
+        let diag2 = diag.clone().powi(2);
         let xj = unsafe { *x.get_unchecked(j) };
-        let sigma_xj2 = sigma * N::modulus_squared(xj);
-        let gamma = diag2 * beta + sigma_xj2;
-        let new_diag = (diag2 + (sigma_xj2 / beta)).sqrt();
-        unsafe { *chol.get_unchecked_mut((j, j)) = N::from_real(new_diag) };
+        let sigma_xj2 = N::modulus_squared(xj) * sigma.clone();
+        let gamma = diag2.clone() * beta.clone() + sigma_xj2.clone();
+        let new_diag = (diag2.clone() + (sigma_xj2.clone() / beta.clone())).sqrt();
+        unsafe { *chol.get_unchecked_mut((j, j)) = N::from_real(new_diag.clone()) };
         beta += sigma_xj2 / diag2;
 
         // updates the terms of L
         let mut xjplus = x.rows_range_mut(j + 1..);
         let mut col_j = chol.slice_range_mut(j + 1.., j);
         // temp_jplus -= (wj / N::from_real(diag)) * col_j;
-        xjplus.axpy(-xj / N::from_real(diag), &col_j, N::one());
-        if gamma != nalgebra::zero::<N::RealField>() {
+        xjplus.axpy(-xj / N::from_real(diag.clone()), &col_j, N::one());
+        if gamma != rv::nalgebra::zero::<N::RealField>() {
             // col_j = N::from_real(nljj / diag) * col_j  + (N::from_real(nljj * sigma / gamma) * N::conjugate(wj)) * temp_jplus;
             col_j.axpy(
-                N::from_real(new_diag * sigma / gamma) * N::conjugate(xj),
+                N::from_real(new_diag.clone() * sigma.clone() / gamma) * N::conjugate(xj),
                 &xjplus,
-                N::from_real(new_diag / diag),
+                N::from_real(new_diag / diag.clone()),
             );
         }
     }

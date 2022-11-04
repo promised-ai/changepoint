@@ -1,6 +1,6 @@
 [package]
 name = "changepoint"
-version = "0.12.2"
+version = "0.13.0"
 authors = [
     "Mike Schmidt <schmidmt@gmail.com>",
     "Baxter Eaves <baxyjr@gmail.com>",
@@ -18,11 +18,12 @@ gitlab = { repository = "https://gitlab.com/Redpoll/changepoint/" }
 maintenance = { status = "actively-developed" }
 
 [features]
-serde1 = ["serde", "rv/serde1", "nalgebra/serde-serialize"]
+serde1 = ["serde", "rv/serde1"]
 
 [dependencies]
 rand = { version = "0.8", features = ["small_rng"] }
-rv = { version = "0.12", features = ["process"] }
+# rv = { version = "0.14.3", features = ["process", "arraydist"] }
+rv = { path="/Users/bax/Documents/redpoll/rv", features = ["process", "arraydist"] }
 serde = {version = "1", optional = true, features=["derive"]}
 serde_derive = {version = "1", optional = true}
 ndarray = { version = "0.15", features = ["serde", "approx", "rayon"] }
@@ -30,7 +31,7 @@ derive_more = "0.99"
 rayon = "1.4"
 num-traits = "0.2"
 approx = "0.4"
-nalgebra = "0.25"
+# nalgebra = "0.27"
 special = "0.8"
 
 [dev-dependencies]
