@@ -47,6 +47,7 @@ fn pyany_to_dmatrix(x: &PyAny) -> PyResult<DMatrix<f64>> {
     })
 }
 
+/// The variant of the prior distribution
 #[derive(Clone, Debug)]
 pub enum PriorVariant {
     NormalGamma(NormalGamma),
@@ -57,6 +58,8 @@ pub enum PriorVariant {
     Gamma(Gamma),
 }
 
+/// Prior distribution, which also describes the liklihood distribution of the
+/// change point detector.
 #[pyclass]
 #[derive(Clone, Debug)]
 pub struct Prior {
@@ -137,19 +140,80 @@ impl Prior {
     }
 }
 
-#[pyfunction]
+/// Normal Gamma prior on univariate Normal random variable
+///
+/// Parameters
+/// ----------
+/// m: float
+///     Prior mean
+/// r: float > 0.0
+/// s: float > 0.0
+/// v: float > 0.0
+///
+/// Returns
+/// -------
+/// Normal Gamma-Square prior
+///
+/// Raises
+/// ------
+/// ValueError:
+///     - m, r, s, v is infinite or NaN, 
+///     - r, s, v <= 0.0
+#[pyfunction(m="0.0", r="1.0", s="1.0", v="1.0")]
 #[pyo3(name = "NormalGamma")]
 pub fn normal_gamma(m: f64, r: f64, s: f64, v: f64) -> PyResult<Prior> {
     Prior::normal_gamma(m, r, s, v)
 }
 
-#[pyfunction]
+/// Normal Inverse-Gamma prior on univariate Normal random variable
+///
+/// Parameters
+/// ----------
+/// m: float
+///     Prior mean
+/// r: float > 0.0
+/// a: float > 0.0
+/// b: float > 0.0
+///
+/// Returns
+/// -------
+/// Normal Inverse-Gamma-Square prior
+///
+/// Raises
+/// ------
+/// ValueError:
+///     - m, v, a, b is infinite or NaN, 
+///     - v, a, b <= 0.0
+#[pyfunction(m="0.0", v="1.0", a="1.0", b="1.0")]
 #[pyo3(name = "NormalInvGamma")]
 pub fn normal_inv_gamma(m: f64, v: f64, a: f64, b: f64) -> PyResult<Prior> {
     Prior::normal_inv_gamma(m, v, a, b)
 }
 
-#[pyfunction]
+/// Normal Inverse-Chi-Squared prior on univariate Normal random variable
+///
+/// Parameters
+/// ----------
+/// m: float
+///     Prior mean
+/// k: float > 0.0
+///     Amount of confidence in the prior mean; measured in pseudo observations.
+/// v: float > 0.0
+///     Amount of confidence in the prior variance; measured in pseudo
+///     observations.
+/// s2: float > 0.0
+///     Prior variance
+///
+/// Returns
+/// -------
+/// Normal Inverse-Chi-Square prior
+///
+/// Raises
+/// ------
+/// ValueError:
+///     - m, k, v, s2 is infinite or NaN, 
+///     - k, v, s2 <= 0.0
+#[pyfunction(m="0.0", k="1.0", v="1.0", s2="1.0")]
 #[pyo3(name = "NormalInvChiSquared")]
 pub fn normal_inv_chi_squared(
     m: f64,
@@ -160,6 +224,7 @@ pub fn normal_inv_chi_squared(
     Prior::normal_inv_chi_squared(m, k, v, s2)
 }
 
+/// Normal Inverse-Wishart prior on multivariate Normal random variable
 #[pyfunction]
 #[pyo3(name = "NormalInvWishart")]
 pub fn normal_inv_wishart(
@@ -171,13 +236,45 @@ pub fn normal_inv_wishart(
     Prior::normal_inv_wishart(mu, k, df, scale)
 }
 
-#[pyfunction]
+/// Beta prior on a Bernoulli random variable
+///
+/// Parameters
+/// ----------
+/// alpha: float > 0
+///     alpha parameter of beta distribution
+/// beta: float > 0
+///     beta parameter of beta distribution
+///
+/// Returns
+/// -------
+/// Beta prior on Bernoulli distribution
+///
+/// Raises
+/// ------
+/// ValueError: alpha or beta is <= 0, infinite, or NaN
+#[pyfunction(alpha="0.5", beta="0.5")]
 #[pyo3(name = "BetaBernoulli")]
 pub fn beta_bernoulli(alpha: f64, beta: f64) -> PyResult<Prior> {
     Prior::beta_bernoulli(alpha, beta)
 }
 
-#[pyfunction]
+/// Gamma prior on a Poisson random variable
+///
+/// Parameters
+/// ----------
+/// shape: float > 0
+///     The Gamma distribution shape parameter
+/// rate: float > 0
+///     The Gamma distribution rate parameter
+///
+/// Returns
+/// -------
+/// Gamma prior on Poisson
+///
+/// Raises
+/// ------
+/// ValueError: shape or rate is <= 0, infinite, or NaN
+#[pyfunction(shape="1.0", rate="1.0")]
 #[pyo3(name = "PoissonGamma")]
 pub fn poisson_gamma(shape: f64, rate: f64) -> PyResult<Prior> {
     Prior::poisson_gamma(shape, rate)
@@ -209,6 +306,8 @@ fn dist_to_bocpd(dist: &Prior, lambda: f64) -> BocpdVariant {
     }
 }
 
+/// The variant of the `Bocpd`. Describes the prior, likelihood, and the input
+/// data type.
 #[derive(Clone, Debug)]
 pub enum BocpdVariant {
     NormalGamma(changepoint::Bocpd<f64, Gaussian, NormalGamma>),
@@ -222,6 +321,7 @@ pub enum BocpdVariant {
 }
 
 impl BocpdVariant {
+    /// Reset the stream and learned parameters
     fn reset(&mut self) {
         match self {
             Self::NormalGamma(bocpd) => bocpd.reset(),
@@ -233,6 +333,7 @@ impl BocpdVariant {
         }
     }
 
+    /// Observe a new datum. Returns the run length probabilities for each step.
     fn step(&mut self, datum: &PyAny) -> PyResult<Vec<f64>> {
         match self {
             Self::NormalGamma(bocpd) => {
@@ -305,7 +406,7 @@ impl Bocpd {
         self.bocpd.reset()
     }
 
-    /// Observe a new datum. Returns the runlength probabilities for each step.
+    /// Observe a new datum. Returns the run length probabilities for each step.
     pub fn step(&mut self, datum: &PyAny) -> PyResult<Vec<f64>> {
         self.bocpd.step(datum).map(|rs| rs.to_vec())
     }
