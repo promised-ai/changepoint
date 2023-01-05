@@ -9,7 +9,30 @@ use rv::process::gaussian::kernel::{
 /// Autoregressive Gaussian Process Change Point detection
 ///
 /// Based on Ryan Turner's [thesis](https://www.repository.cam.ac.uk/bitstream/handle/1810/242181/thesis.pdf?sequence=1&isAllowed=y).
-#[pyclass]
+///
+/// Parameters
+/// ----------
+/// scale: float
+///     Scale of the `ConstantKernel`
+/// length_scale:float
+///     Length Scale of `RBFKernel`
+/// noise_level: float
+///     Noise standard deviation for the `WhiteKernel`
+/// max_lag: int > 0
+///     Maximum Autoregressive lag
+/// alpha0 : float
+///     Scale Gamma distribution alpha parameter
+/// beta0: float
+///     Scale Gamma distribution beta parameter
+/// logistic_hazard_h: float
+///     Hazard scale in logit units.
+/// logistic_hazard_a: float
+///     Roughly the slope of the logistic hazard function
+/// logistic_hazard_b: float
+///     The offset of the logistic hazard function.
+#[pyclass(
+    text_signature = "(scale=0.5, length_scale=10, noise_level=0.01, max_lag=3, alpha0=2, beta0=1, logistic_hazard_h=-5, logistic_hazard_a=1, logistic_hazard_b=1)"
+)]
 pub struct ArgpCpd {
     argpcpd: Argpcp<
         AddKernel<ProductKernel<ConstantKernel, RBFKernel>, WhiteKernel>,
@@ -19,39 +42,18 @@ pub struct ArgpCpd {
 #[pymethods]
 impl ArgpCpd {
     /// Create a new Argpcp
-    ///
-    /// Parameters
-    /// ----------
-    /// scale: float
-    ///     Scale of the `ConstantKernel`
-    /// length_scale:float
-    ///     Length Scale of `RBFKernel`
-    /// noise_level: float
-    ///     Noise standard deviation for the `WhiteKernel`
-    /// max_lag: int > 0
-    ///     Maximum Autoregressive lag
-    /// alpha0 : float
-    ///     Scale Gamma distribution alpha parameter
-    /// beta0: float
-    ///     Scale Gamma distribution beta parameter
-    /// logistic_hazard_h: float
-    ///     Hazard scale in logit units.
-    /// logistic_hazard_a: float
-    ///     Roughly the slope of the logistic hazard function
-    /// logistic_hazard_b: float
-    ///     The offset of the logistic hazard function.
     #[new]
-    #[args(
-        scale = "0.5",
-        length_scale = "10.0",
-        noise_level = "0.01",
-        max_lag = "3",
-        alpha0 = "2.0",
-        beta0 = "1.0",
-        logistic_hazard_h = "-5.0",
-        logistic_hazard_a = "1.0",
-        logistic_hazard_b = "1.0"
-    )]
+    #[pyo3(signature = (
+        scale = 0.5,
+        length_scale = 10.0,
+        noise_level = 0.01,
+        max_lag = 3,
+        alpha0 = 2.0,
+        beta0 = 1.0,
+        logistic_hazard_h = -5.0,
+        logistic_hazard_a = 1.0,
+        logistic_hazard_b = 1.0
+    ))]
     pub fn new(
         scale: f64,
         length_scale: f64,
@@ -91,6 +93,17 @@ impl ArgpCpd {
     }
 
     /// Observe a new datum and return the run length probabilities
+    ///
+    /// Parameters
+    /// ----------
+    ///
+    /// datum: float
+    ///     Next datum in the data stream.
+    ///
+    /// Returns
+    /// -------
+    /// List[float]
+    ///     A list of change point probabilities.
     pub fn step(&mut self, datum: f64) -> Vec<f64> {
         self.argpcpd.step(&datum).to_vec()
     }

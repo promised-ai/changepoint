@@ -2,13 +2,25 @@ variables:
     CARGO_HOME: $CI_PROJECT_DIR/cargo
     RUST_BACKTRACE: 1
 
-before_script:
-    - rustup component add rustfmt
 
 test:cargo-stable:
-    image: "rust:1.52"
+    image: "rust:1-slim"
+    before_script:
+        - rustup component add rustfmt
+        - apt-get update
+        - apt-get install -y python3-pip build-essential
     script:
         - rustc --version && cargo --version
         - cargo build --all --all-features --no-default-features
         - time cargo test --jobs 1 --all-features --no-default-features
         - cargo bench -- --test
+
+test:python:
+    image: "rust:1-slim"
+    before_script:
+        - rustup component add rustfmt
+        - apt-get update
+        - apt-get install -y python3-pip build-essential
+        - pip install nox
+    script:
+        - nox -f pychangepoint/noxfile.py

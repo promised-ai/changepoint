@@ -1,0 +1,26 @@
+[package]
+name = "pychangepoint"
+description = "A Python module for changepoint"
+version = "0.2.0"
+repository = "https://gitlab.com/Redpoll/changepoint"
+authors = ["Redpoll <info@redpoll.ai>"]
+edition = "2021"
+license = "MIT"
+publish = false
+
+[lib]
+name = "pychangepoint"
+crate-type = ["cdylib"]
+
+[dependencies]
+rand = { version = "0.8", features = ["small_rng"] }
+rv = { version = "0.14", features = ["process", "arraydist"] }
+changepoint = { path = "../changepoint" }
+nalgebra = { version = "0.27" }
+
+numpy = "0.18"
+pyo3 = "0.18"
+
+[features]
+extension-module = ["pyo3/extension-module"]
+default = ["extension-module"]

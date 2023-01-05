@@ -3,15 +3,15 @@
 use std::{f64::consts::PI, ops::AddAssign};
 
 use crate::BocpdLike;
+use nalgebra::{
+    allocator::Allocator, constraint::SameNumberOfRows,
+    constraint::ShapeConstraint, storage::StorageMut, ComplexField, DMatrix,
+    DVector, DefaultAllocator, Dim, Matrix, OMatrix, Scalar, Vector, U1,
+};
 use num_traits::Zero;
 use rv::{
     prelude::{Gaussian, NormalGamma, Rv, StudentsT as RvStudentsT},
     process::gaussian::kernel::Kernel,
-};
-use rv::nalgebra::{
-    allocator::Allocator, constraint::SameNumberOfRows,
-    constraint::ShapeConstraint, storage::StorageMut, ComplexField, DMatrix,
-    DVector, DefaultAllocator, Dim, Matrix, MatrixMN, Scalar, Vector, U1,
 };
 use special::Gamma;
 
@@ -408,7 +408,7 @@ where
     }
 }
 
-fn col_cumsum<N, R, C>(mat: MatrixMN<N, R, C>) -> MatrixMN<N, R, C>
+fn col_cumsum<N, R, C>(mat: OMatrix<N, R, C>) -> OMatrix<N, R, C>
 where
     N: Scalar + AddAssign<N> + Zero + Copy,
     R: Dim,
@@ -429,7 +429,7 @@ where
         })
         .flat_map(std::iter::IntoIterator::into_iter);
 
-    MatrixMN::from_iterator_generic(r_out, c_out, it)
+    OMatrix::from_iterator_generic(r_out, c_out, it)
 }
 
 // From NAlgebra's Cholesky struct
@@ -452,7 +452,7 @@ fn rank_one_update<N, Dm, Sm, Rx, Sx>(
         "The input vector must be of the same size as the factorized matrix."
     );
 
-    let mut beta = rv::nalgebra::one::<N::RealField>();
+    let mut beta = nalgebra::one::<N::RealField>();
 
     // FIXME: too many clones!
     for j in 0..n {
@@ -462,8 +462,11 @@ fn rank_one_update<N, Dm, Sm, Rx, Sx>(
         let xj = unsafe { *x.get_unchecked(j) };
         let sigma_xj2 = N::modulus_squared(xj) * sigma.clone();
         let gamma = diag2.clone() * beta.clone() + sigma_xj2.clone();
-        let new_diag = (diag2.clone() + (sigma_xj2.clone() / beta.clone())).sqrt();
-        unsafe { *chol.get_unchecked_mut((j, j)) = N::from_real(new_diag.clone()) };
+        let new_diag =
+            (diag2.clone() + (sigma_xj2.clone() / beta.clone())).sqrt();
+        unsafe {
+            *chol.get_unchecked_mut((j, j)) = N::from_real(new_diag.clone())
+        };
         beta += sigma_xj2 / diag2;
 
         // updates the terms of L
@@ -471,10 +474,11 @@ fn rank_one_update<N, Dm, Sm, Rx, Sx>(
         let mut col_j = chol.slice_range_mut(j + 1.., j);
         // temp_jplus -= (wj / N::from_real(diag)) * col_j;
         xjplus.axpy(-xj / N::from_real(diag.clone()), &col_j, N::one());
-        if gamma != rv::nalgebra::zero::<N::RealField>() {
+        if gamma != nalgebra::zero::<N::RealField>() {
             // col_j = N::from_real(nljj / diag) * col_j  + (N::from_real(nljj * sigma / gamma) * N::conjugate(wj)) * temp_jplus;
             col_j.axpy(
-                N::from_real(new_diag.clone() * sigma.clone() / gamma) * N::conjugate(xj),
+                N::from_real(new_diag.clone() * sigma.clone() / gamma)
+                    * N::conjugate(xj),
                 &xjplus,
                 N::from_real(new_diag / diag.clone()),
             );
@@ -486,7 +490,7 @@ fn rank_one_update<N, Dm, Sm, Rx, Sx>(
 fn chol_solve<N, Dm, Sm, R2, C2, S2>(
     chol: &Matrix<N, Dm, Dm, Sm>,
     b: &Matrix<N, R2, C2, S2>,
-) -> MatrixMN<N, R2, C2>
+) -> OMatrix<N, R2, C2>
 where
     N: ComplexField,
     Dm: Dim,

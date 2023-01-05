@@ -1,0 +1,31 @@
+[build-system]
+requires = [
+    "maturin >= 0.14, < 0.15",
+]
+build-backend = "maturin" 
+
+[project]
+name = "pychangepoint"
+authors = [
+    {name = "Michael T. Schmidt", email = "schmidt@redpoll.ai" },
+    {name = "Baxter Eaves", email = "bax@redpoll.ai" },
+]
+description= "A Bayesian change point library"
+readme = "README.md"
+requires-python = ">=3.7, < 4"
+keywords = ["changepoint"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Topic :: Scientific/Engineering :: Mathematics",
+]
+dependencies = []
+dynamic = ["version"]
+
+[project.urls]
+Repository = "https://gitlab.com/Redpoll/changepoint"
+Changelog = "https://gitlab.com/Redpoll/changepoint/-/blob/master/CHANGELOG.md"
+
+[tool.maturin]
+bindings = "pyo3"

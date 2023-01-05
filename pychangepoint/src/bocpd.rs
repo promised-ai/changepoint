@@ -1,11 +1,11 @@
 use changepoint::BocpdLike;
+use nalgebra::{DMatrix, DVector};
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use rv::dist::{
     Bernoulli, Beta, Gamma, Gaussian, MvGaussian, NormalGamma,
     NormalInvChiSquared, NormalInvGamma, NormalInvWishart, Poisson,
 };
-use rv::nalgebra::{DMatrix, DVector};
 
 fn pyany_to_f64(x: &PyAny) -> PyResult<f64> {
     x.extract()
@@ -69,7 +69,7 @@ pub struct Prior {
 #[pymethods]
 impl Prior {
     #[staticmethod]
-    #[args(m = "0.0", r = "1.0", s = "1.0", v = "1.0")]
+    #[pyo3(signature = (m = 0.0, r = 1.0, s = 1.0, v = 1.0))]
     pub fn normal_gamma(m: f64, r: f64, s: f64, v: f64) -> PyResult<Self> {
         NormalGamma::new(m, r, s, v)
             .map_err(|err| PyValueError::new_err(err.to_string()))
@@ -79,17 +79,17 @@ impl Prior {
     }
 
     #[staticmethod]
-    #[args(m = "0.0", v = "1.0", a = "1.0", b = "1.0")]
+    #[pyo3(signature = (m = 0.0, v = 1.0, a = 1.0, b = 1.0))]
     pub fn normal_inv_gamma(m: f64, v: f64, a: f64, b: f64) -> PyResult<Self> {
         NormalInvGamma::new(m, v, a, b)
-            .map_err(|err| PyValueError::new_err(err.to_string()))
+            .map_err(|err| PyValueError::new_err(format!("{err:?}")))
             .map(|dist| Prior {
                 dist: PriorVariant::NormalInvGamma(dist),
             })
     }
 
     #[staticmethod]
-    #[args(m = "0.0", k = "1.0", v = "1.0", s2 = "1.0")]
+    #[pyo3(signature = (m = 0.0, k = 1.0, v = 1.0, s2 = 1.0))]
     pub fn normal_inv_chi_squared(
         m: f64,
         k: f64,
@@ -97,13 +97,14 @@ impl Prior {
         s2: f64,
     ) -> PyResult<Self> {
         NormalInvChiSquared::new(m, k, v, s2)
-            .map_err(|err| PyValueError::new_err(err.to_string()))
+            .map_err(|err| PyValueError::new_err(format!("{err:?}")))
             .map(|dist| Prior {
                 dist: PriorVariant::NormalInvChiSquared(dist),
             })
     }
 
     #[staticmethod]
+    #[pyo3(signature = (mu, k, df, scale))]
     pub fn normal_inv_wishart(
         mu: &PyAny,
         k: f64,
@@ -120,7 +121,7 @@ impl Prior {
     }
 
     #[staticmethod]
-    #[args(alpha = "0.5", beta = "0.5")]
+    #[pyo3(signature = (alpha = 0.5, beta = 0.5))]
     pub fn beta_bernoulli(alpha: f64, beta: f64) -> PyResult<Self> {
         Beta::new(alpha, beta)
             .map_err(|err| PyValueError::new_err(err.to_string()))
@@ -130,7 +131,7 @@ impl Prior {
     }
 
     #[staticmethod]
-    #[args(shape = "1.0", rate = "1.0")]
+    #[pyo3(signature = (shape = 1.0, rate = 1.0))]
     pub fn poisson_gamma(shape: f64, rate: f64) -> PyResult<Self> {
         Gamma::new(shape, rate)
             .map_err(|err| PyValueError::new_err(err.to_string()))
@@ -138,9 +139,52 @@ impl Prior {
                 dist: PriorVariant::Gamma(dist),
             })
     }
+
+    pub fn __repr__(&self) -> String {
+        match &self.dist {
+            PriorVariant::NormalGamma(ng) => {
+                format!(
+                    "Prior.NormalGamma(m = {}, s = {}, r = {}, v = {})",
+                    ng.m(),
+                    ng.s(),
+                    ng.r(),
+                    ng.v()
+                )
+            }
+            PriorVariant::NormalInvGamma(nig) => {
+                format!(
+                    "Prior.NormalInvGamma(m = {}, v = {}, a = {}, b = {})",
+                    nig.m(),
+                    nig.v(),
+                    nig.a(),
+                    nig.b()
+                )
+            }
+            PriorVariant::NormalInvChiSquared(nics) => {
+                format!("Prior.NormalInvChiSquared(m = {}, k = {}, v = {}, s2 = {})", nics.m(), nics.k(), nics.v(), nics.s2())
+            }
+            PriorVariant::NormalInvWishart(niw) => format!(
+                "Prior.NormalInvWishart(mu = {}, k = {}, df = {}, scale = {})",
+                niw.mu(),
+                niw.k(),
+                niw.df(),
+                niw.scale()
+            ),
+            PriorVariant::Beta(b) => format!(
+                "Prior.Beta(alpha = {}, beta = {})",
+                b.alpha(),
+                b.beta()
+            ),
+            PriorVariant::Gamma(g) => format!(
+                "Prior.Gamma(shape = {}, rate = {})",
+                g.shape(),
+                g.rate()
+            ),
+        }
+    }
 }
 
-/// Normal Gamma prior on univariate Normal random variable
+/// Normal Gamma prior on univariate Normal random variable.
 ///
 /// Parameters
 /// ----------
@@ -157,40 +201,46 @@ impl Prior {
 /// Raises
 /// ------
 /// ValueError:
-///     - m, r, s, v is infinite or NaN, 
+///     - m, r, s, v is infinite or NaN,
 ///     - r, s, v <= 0.0
-#[pyfunction(m="0.0", r="1.0", s="1.0", v="1.0")]
-#[pyo3(name = "NormalGamma")]
+#[pyfunction(signature = (m = 0.0, r = 1.0, s = 1.0, v = 1.0))]
+#[pyo3(
+    name = "NormalGamma",
+    text_signature = "(m = 0.0, r = 1.0, s = 1.0, v = 1.0)"
+)]
 pub fn normal_gamma(m: f64, r: f64, s: f64, v: f64) -> PyResult<Prior> {
     Prior::normal_gamma(m, r, s, v)
 }
 
-/// Normal Inverse-Gamma prior on univariate Normal random variable
+/// Normal Inverse-Gamma prior on univariate Normal random variable.
 ///
 /// Parameters
 /// ----------
 /// m: float
 ///     Prior mean
-/// r: float > 0.0
+/// v: float > 0.0
 /// a: float > 0.0
 /// b: float > 0.0
 ///
 /// Returns
 /// -------
-/// Normal Inverse-Gamma-Square prior
+/// Normal Inverse-Gamma prior
 ///
 /// Raises
 /// ------
 /// ValueError:
-///     - m, v, a, b is infinite or NaN, 
+///     - m, v, a, b is infinite or NaN,
 ///     - v, a, b <= 0.0
-#[pyfunction(m="0.0", v="1.0", a="1.0", b="1.0")]
-#[pyo3(name = "NormalInvGamma")]
+#[pyfunction(signature = (m = 0.0, v = 1.0, a = 1.0, b = 1.0))]
+#[pyo3(
+    name = "NormalInvGamma",
+    text_signature = "(m = 0.0, v = 1.0, a = 1.0, b = 1.0)"
+)]
 pub fn normal_inv_gamma(m: f64, v: f64, a: f64, b: f64) -> PyResult<Prior> {
     Prior::normal_inv_gamma(m, v, a, b)
 }
 
-/// Normal Inverse-Chi-Squared prior on univariate Normal random variable
+/// Normal Inverse-Chi-Squared prior on univariate Normal random variable.
 ///
 /// Parameters
 /// ----------
@@ -211,9 +261,9 @@ pub fn normal_inv_gamma(m: f64, v: f64, a: f64, b: f64) -> PyResult<Prior> {
 /// Raises
 /// ------
 /// ValueError:
-///     - m, k, v, s2 is infinite or NaN, 
+///     - m, k, v, s2 is infinite or NaN,
 ///     - k, v, s2 <= 0.0
-#[pyfunction(m="0.0", k="1.0", v="1.0", s2="1.0")]
+#[pyfunction]
 #[pyo3(name = "NormalInvChiSquared")]
 pub fn normal_inv_chi_squared(
     m: f64,
@@ -224,7 +274,7 @@ pub fn normal_inv_chi_squared(
     Prior::normal_inv_chi_squared(m, k, v, s2)
 }
 
-/// Normal Inverse-Wishart prior on multivariate Normal random variable
+/// Normal Inverse-Wishart prior on multivariate Normal random variable.
 #[pyfunction]
 #[pyo3(name = "NormalInvWishart")]
 pub fn normal_inv_wishart(
@@ -236,7 +286,7 @@ pub fn normal_inv_wishart(
     Prior::normal_inv_wishart(mu, k, df, scale)
 }
 
-/// Beta prior on a Bernoulli random variable
+/// Beta prior on a Bernoulli random variable.
 ///
 /// Parameters
 /// ----------
@@ -252,13 +302,13 @@ pub fn normal_inv_wishart(
 /// Raises
 /// ------
 /// ValueError: alpha or beta is <= 0, infinite, or NaN
-#[pyfunction(alpha="0.5", beta="0.5")]
-#[pyo3(name = "BetaBernoulli")]
+#[pyfunction(signature = (alpha = 0.5, beta = 0.5))]
+#[pyo3(name = "BetaBernoulli", text_signature = "(alpha = 0.5, beta = 0.5)")]
 pub fn beta_bernoulli(alpha: f64, beta: f64) -> PyResult<Prior> {
     Prior::beta_bernoulli(alpha, beta)
 }
 
-/// Gamma prior on a Poisson random variable
+/// Gamma prior on a Poisson random variable.
 ///
 /// Parameters
 /// ----------
@@ -274,8 +324,8 @@ pub fn beta_bernoulli(alpha: f64, beta: f64) -> PyResult<Prior> {
 /// Raises
 /// ------
 /// ValueError: shape or rate is <= 0, infinite, or NaN
-#[pyfunction(shape="1.0", rate="1.0")]
-#[pyo3(name = "PoissonGamma")]
+#[pyfunction(signature = (shape = 1.0, rate = 1.0))]
+#[pyo3(name = "PoissonGamma", text_signature = "(shape = 1.0, rate = 1.0)")]
 pub fn poisson_gamma(shape: f64, rate: f64) -> PyResult<Prior> {
     Prior::poisson_gamma(shape, rate)
 }
@@ -366,38 +416,38 @@ impl BocpdVariant {
 }
 
 /// Online Bayesian Change Point Detection state container
-#[pyclass]
 #[derive(Clone, Debug)]
+#[pyclass(text_signature = "(prior, lam)")]
+/// Create a new BOCPD
+///
+/// Parameters
+/// ----------
+/// prior: Prior
+///     The (conjugate) prior, which also describes the likelihood
+///     distribution for the stream.
+/// lam: float
+///     Expected mean run length. A smaller value means changepoints are
+///     believed to occur at shorter intervals.
+///
+/// Raises
+/// ------
+/// ValueError: lam <= 0.0
+///
 pub struct Bocpd {
     bocpd: BocpdVariant,
 }
 
 #[pymethods]
 impl Bocpd {
-    /// Create a new BOCPD
-    ///
-    /// Parameters
-    /// ----------
-    /// prior: Prior
-    ///     The (conjugate) prior, which also describes the likelihood
-    ///     distribution for the stream.
-    /// lambda: float
-    ///     Expected mean run length. A smaller value means changepoints are
-    ///     believed to occur at shorter intervals.
-    ///
-    /// Raises
-    /// ------
-    /// ValueError: lambda <= 0.0
     #[new]
-    pub fn new(prior: Prior, lambda: f64) -> PyResult<Self> {
-        if lambda <= 0.0 {
-            return Err(PyValueError::new_err(
-                "lambda must be greater than zero",
-            ));
+    /// Create a new BOCPD
+    pub fn new(prior: Prior, lam: f64) -> PyResult<Self> {
+        if lam <= 0.0 {
+            return Err(PyValueError::new_err("lam must be greater than zero"));
         }
 
         Ok(Bocpd {
-            bocpd: dist_to_bocpd(&prior, lambda),
+            bocpd: dist_to_bocpd(&prior, lam),
         })
     }
 
