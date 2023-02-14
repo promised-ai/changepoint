@@ -141,6 +141,17 @@ pub fn infer_pseudo_cmf_changepoints<R: Rng>(
         .collect())
 }
 
+//    0 1 2 3 4 5 6 7
+// 0 [1]                  | s = 0 DONE
+// 1 [0 1]                |
+// 2 [0 0 1]              |
+// 3 [0 0 0 1]            | s = 3, argmax = 3, s -> s - 3 = 0, CPs: [7, 4, 0]
+// 4 [1] - Change         | s = 4, argmax = 0, s -> s - 1 = 3, CPs: [7, 4]
+// 5 [0 1]                |
+// 6 [0 0 1]              | s = 6, argmax = 2, s -> s - 2 = 4, CPs: [7, 4]
+// 7 [1] - Change         | s = 7, argmax = 0, s -> s - 1 = 6, CPs: [7]
+// 8 [0 1]                | s = 8, argmax = 1, s -> s - 1 = 7, CPs: [7]
+
 /// Maximum a posteriori change points
 ///
 /// This reverse walks through the run-length distribution sequence and only takes the most likely
@@ -148,12 +159,22 @@ pub fn infer_pseudo_cmf_changepoints<R: Rng>(
 #[must_use]
 pub fn map_changepoints(r: &[Vec<f64>]) -> Vec<usize> {
     let mut s = r.len() - 1;
-    let mut change_points = vec![];
+    let mut change_points: Vec<usize> = vec![];
     while s != 0 {
-        s = s.saturating_sub(
-            *argmax(&r[s]).first().expect("r should not be empty") + 1,
-        );
-        change_points.push(s);
+        let most_likely_runlength: usize =
+            *argmax(&r[s]).first().expect("r should not be empty");
+
+        if most_likely_runlength == 0 {
+            if let Some(last) = change_points.last() {
+                if *last != s {
+                    change_points.push(s);
+                }
+            }
+            s = s.saturating_sub(1);
+        } else {
+            s = s.saturating_sub(most_likely_runlength);
+            change_points.push(s);
+        }
     }
     change_points.reverse();
     change_points
@@ -197,4 +218,43 @@ where
             }
         },
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::map_changepoints;
+
+    #[test]
+    fn simple_map() {
+        let r: [Vec<f64>; 9] = [
+            vec![1.],
+            vec![0., 1.],
+            vec![0., 0., 1.],
+            vec![0., 0., 0., 1.],
+            vec![1.],
+            vec![0., 1.],
+            vec![0., 0., 1.],
+            vec![1.],
+            vec![0., 1.],
+        ];
+
+        assert_eq!(map_changepoints(&r), vec![0, 4, 7]);
+    }
+
+    #[test]
+    fn consecutive_map() {
+        let r: [Vec<f64>; 9] = [
+            vec![1.],
+            vec![0., 1.],
+            vec![0., 0., 1.],
+            vec![0., 0., 0., 1.],
+            vec![1.],
+            vec![1.],
+            vec![1.],
+            vec![1.],
+            vec![0., 1.],
+        ];
+
+        assert_eq!(map_changepoints(&r), vec![0, 4, 5, 6, 7]);
+    }
 }
