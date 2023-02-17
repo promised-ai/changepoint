@@ -1,5 +1,5 @@
 [workspace]
-members = ["changepoint", "changepoint-py"]
+members = ["changepoint", "pychangepoint"]
 default-members = ["changepoint"]
 
 [profile.bench]

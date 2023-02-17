@@ -6,7 +6,7 @@ use crate::BocpdLike;
 use nalgebra::{
     allocator::Allocator, constraint::SameNumberOfRows,
     constraint::ShapeConstraint, storage::StorageMut, ComplexField, DMatrix,
-    DVector, DefaultAllocator, Dim, Matrix, MatrixMN, Scalar, Vector, U1,
+    DVector, DefaultAllocator, Dim, Matrix, OMatrix, Scalar, Vector, U1,
 };
 use num_traits::Zero;
 use rv::{
@@ -276,13 +276,12 @@ where
             let vk_alpha_cs = col_cumsum(vk.component_mul(&self.alpha));
             let vk_vk_cs = col_cumsum(vk.component_mul(&vk));
             let beta_div_alpha = self.beta_t.component_div(&self.alpha_t);
-            let alpha_t = self.alpha_t.clone();
 
             vk_alpha_cs
                 .iter()
                 .zip(beta_div_alpha.iter())
                 .zip(vk_vk_cs.iter())
-                .zip(alpha_t.iter())
+                .zip(self.alpha_t.iter())
                 .for_each(|(((&vkac, &bda), &vvc), &at)| {
                     self.preds.push(StudentT::new(
                         vkac,
@@ -408,7 +407,7 @@ where
     }
 }
 
-fn col_cumsum<N, R, C>(mat: MatrixMN<N, R, C>) -> MatrixMN<N, R, C>
+fn col_cumsum<N, R, C>(mat: OMatrix<N, R, C>) -> OMatrix<N, R, C>
 where
     N: Scalar + AddAssign<N> + Zero + Copy,
     R: Dim,
@@ -429,7 +428,7 @@ where
         })
         .flat_map(std::iter::IntoIterator::into_iter);
 
-    MatrixMN::from_iterator_generic(r_out, c_out, it)
+    OMatrix::from_iterator_generic(r_out, c_out, it)
 }
 
 // From NAlgebra's Cholesky struct
@@ -438,7 +437,7 @@ fn rank_one_update<N, Dm, Sm, Rx, Sx>(
     x: &mut Vector<N, Rx, Sx>,
     sigma: N::RealField,
 ) where
-    N: ComplexField,
+    N: ComplexField + Copy,
     Dm: Dim,
     Rx: Dim,
     Sm: StorageMut<N, Dm, Dm>,
@@ -457,9 +456,9 @@ fn rank_one_update<N, Dm, Sm, Rx, Sx>(
     for j in 0..n {
         // updates the diagonal
         let diag = N::real(unsafe { *chol.get_unchecked((j, j)) });
-        let diag2 = diag * diag;
+        let diag2 = diag.powi(2);
         let xj = unsafe { *x.get_unchecked(j) };
-        let sigma_xj2 = sigma * N::modulus_squared(xj);
+        let sigma_xj2 = N::modulus_squared(xj) * sigma;
         let gamma = diag2 * beta + sigma_xj2;
         let new_diag = (diag2 + (sigma_xj2 / beta)).sqrt();
         unsafe { *chol.get_unchecked_mut((j, j)) = N::from_real(new_diag) };
@@ -485,7 +484,7 @@ fn rank_one_update<N, Dm, Sm, Rx, Sx>(
 fn chol_solve<N, Dm, Sm, R2, C2, S2>(
     chol: &Matrix<N, Dm, Dm, Sm>,
     b: &Matrix<N, R2, C2, S2>,
-) -> MatrixMN<N, R2, C2>
+) -> OMatrix<N, R2, C2>
 where
     N: ComplexField,
     Dm: Dim,
