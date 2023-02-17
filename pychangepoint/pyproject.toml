@@ -7,8 +7,7 @@ build-backend = "maturin"
 [project]
 name = "pychangepoint"
 authors = [
-    {name = "Michael T. Schmidt", email = "schmidt@redpoll.ai" },
-    {name = "Baxter Eaves", email = "bax@redpoll.ai" },
+    {name = "Redpoll", email = "info@redpoll.ai" },
 ]
 description= "A Bayesian change point library"
 readme = "README.md"

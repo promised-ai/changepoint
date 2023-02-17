@@ -180,9 +180,10 @@ pub fn map_changepoints(r: &[Vec<f64>]) -> Vec<usize> {
     change_points
 }
 
-fn diff<T>(a: T, b: T) -> T
+fn diff<T>(a: &T, b: &T) -> T
 where
     T: PartialOrd + std::ops::Sub<Output = T>,
+    for<'a> &'a T: std::ops::Sub<&'a T, Output = T>,
 {
     if a > b {
         a - b
@@ -197,7 +198,8 @@ where
 /// If the input slices are not of equal length, this will panic.
 pub fn max_error<T>(predicted: &[T], expected: &[T]) -> T
 where
-    T: PartialOrd + std::ops::Sub<Output = T> + Clone,
+    T: PartialOrd + std::ops::Sub<Output = T>,
+    for<'a> &'a T: std::ops::Sub<&'a T, Output = T>,
 {
     debug_assert_eq!(
         predicted.len(),
@@ -206,12 +208,9 @@ where
     );
     assert!(!predicted.is_empty(), "Sequences cannot be empty");
     predicted.iter().skip(1).zip(expected.iter().skip(1)).fold(
-        diff(
-            predicted.first().unwrap().clone(),
-            expected.first().unwrap().clone(),
-        ),
+        diff(predicted.first().unwrap(), expected.first().unwrap()),
         |acc, (a, b)| {
-            let d = diff(a.clone(), b.clone());
+            let d: T = diff(a, b);
             match acc.partial_cmp(&d).unwrap() {
                 std::cmp::Ordering::Less | std::cmp::Ordering::Equal => acc,
                 std::cmp::Ordering::Greater => d,

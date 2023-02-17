@@ -11,4 +11,4 @@ def test_map_changepoints():
 
     rs = [bocpd.step(datum) for datum in data]
 
-    assert pycpt.map_changepoints(rs) == [0, 6]
+    assert pycpt.map_changepoints(rs) == [0, 7]

@@ -276,13 +276,12 @@ where
             let vk_alpha_cs = col_cumsum(vk.component_mul(&self.alpha));
             let vk_vk_cs = col_cumsum(vk.component_mul(&vk));
             let beta_div_alpha = self.beta_t.component_div(&self.alpha_t);
-            let alpha_t = self.alpha_t.clone();
 
             vk_alpha_cs
                 .iter()
                 .zip(beta_div_alpha.iter())
                 .zip(vk_vk_cs.iter())
-                .zip(alpha_t.iter())
+                .zip(self.alpha_t.iter())
                 .for_each(|(((&vkac, &bda), &vvc), &at)| {
                     self.preds.push(StudentT::new(
                         vkac,
@@ -454,33 +453,28 @@ fn rank_one_update<N, Dm, Sm, Rx, Sx>(
 
     let mut beta = nalgebra::one::<N::RealField>();
 
-    // FIXME: too many clones!
     for j in 0..n {
         // updates the diagonal
         let diag = N::real(unsafe { *chol.get_unchecked((j, j)) });
-        let diag2 = diag.clone().powi(2);
+        let diag2 = diag.powi(2);
         let xj = unsafe { *x.get_unchecked(j) };
-        let sigma_xj2 = N::modulus_squared(xj) * sigma.clone();
-        let gamma = diag2.clone() * beta.clone() + sigma_xj2.clone();
-        let new_diag =
-            (diag2.clone() + (sigma_xj2.clone() / beta.clone())).sqrt();
-        unsafe {
-            *chol.get_unchecked_mut((j, j)) = N::from_real(new_diag.clone())
-        };
+        let sigma_xj2 = N::modulus_squared(xj) * sigma;
+        let gamma = diag2 * beta + sigma_xj2;
+        let new_diag = (diag2 + (sigma_xj2 / beta)).sqrt();
+        unsafe { *chol.get_unchecked_mut((j, j)) = N::from_real(new_diag) };
         beta += sigma_xj2 / diag2;
 
         // updates the terms of L
         let mut xjplus = x.rows_range_mut(j + 1..);
         let mut col_j = chol.slice_range_mut(j + 1.., j);
         // temp_jplus -= (wj / N::from_real(diag)) * col_j;
-        xjplus.axpy(-xj / N::from_real(diag.clone()), &col_j, N::one());
+        xjplus.axpy(-xj / N::from_real(diag), &col_j, N::one());
         if gamma != nalgebra::zero::<N::RealField>() {
             // col_j = N::from_real(nljj / diag) * col_j  + (N::from_real(nljj * sigma / gamma) * N::conjugate(wj)) * temp_jplus;
             col_j.axpy(
-                N::from_real(new_diag.clone() * sigma.clone() / gamma)
-                    * N::conjugate(xj),
+                N::from_real(new_diag * sigma / gamma) * N::conjugate(xj),
                 &xjplus,
-                N::from_real(new_diag / diag.clone()),
+                N::from_real(new_diag / diag),
             );
         }
     }

@@ -330,29 +330,28 @@ pub fn poisson_gamma(shape: f64, rate: f64) -> PyResult<Prior> {
     Prior::poisson_gamma(shape, rate)
 }
 
-fn dist_to_bocpd(dist: &Prior, lambda: f64) -> BocpdVariant {
-    match &dist.dist {
-        PriorVariant::NormalGamma(pr) => BocpdVariant::NormalGamma(
-            changepoint::Bocpd::new(lambda, pr.clone()),
-        ),
-        PriorVariant::NormalInvGamma(pr) => BocpdVariant::NormalInvGamma(
-            changepoint::Bocpd::new(lambda, pr.clone()),
-        ),
+fn dist_to_bocpd(dist: Prior, lambda: f64) -> BocpdVariant {
+    match dist.dist {
+        PriorVariant::NormalGamma(pr) => {
+            BocpdVariant::NormalGamma(changepoint::Bocpd::new(lambda, pr))
+        }
+        PriorVariant::NormalInvGamma(pr) => {
+            BocpdVariant::NormalInvGamma(changepoint::Bocpd::new(lambda, pr))
+        }
         PriorVariant::NormalInvChiSquared(pr) => {
             BocpdVariant::NormalInvChiSquared(changepoint::Bocpd::new(
-                lambda,
-                pr.clone(),
+                lambda, pr,
             ))
         }
-        PriorVariant::NormalInvWishart(pr) => BocpdVariant::NormalInvWishart(
-            changepoint::Bocpd::new(lambda, pr.clone()),
-        ),
-        PriorVariant::Beta(pr) => BocpdVariant::BetaBernoulli(
-            changepoint::Bocpd::new(lambda, pr.clone()),
-        ),
-        PriorVariant::Gamma(pr) => BocpdVariant::PoissonGamma(
-            changepoint::Bocpd::new(lambda, pr.clone()),
-        ),
+        PriorVariant::NormalInvWishart(pr) => {
+            BocpdVariant::NormalInvWishart(changepoint::Bocpd::new(lambda, pr))
+        }
+        PriorVariant::Beta(pr) => {
+            BocpdVariant::BetaBernoulli(changepoint::Bocpd::new(lambda, pr))
+        }
+        PriorVariant::Gamma(pr) => {
+            BocpdVariant::PoissonGamma(changepoint::Bocpd::new(lambda, pr))
+        }
     }
 }
 
@@ -447,7 +446,7 @@ impl Bocpd {
         }
 
         Ok(Bocpd {
-            bocpd: dist_to_bocpd(&prior, lam),
+            bocpd: dist_to_bocpd(prior, lam),
         })
     }
 
