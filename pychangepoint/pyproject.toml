@@ -5,7 +5,8 @@ requires = [
 build-backend = "maturin" 
 
 [project]
-name = "pychangepoint"
+name = "changepoint"
+version = "0.2.0"
 authors = [
     {name = "Redpoll", email = "info@redpoll.ai" },
 ]
@@ -23,8 +24,7 @@ dependencies = []
 dynamic = ["version"]
 
 [project.urls]
-Repository = "https://gitlab.com/Redpoll/changepoint"
-Changelog = "https://gitlab.com/Redpoll/changepoint/-/blob/master/CHANGELOG.md"
+Repository = "https://github.com/promised-ai/changepoint"
 
 [tool.maturin]
 bindings = "pyo3"

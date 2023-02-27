@@ -1,10 +1,10 @@
 # changepoint - Change point detection for Rust
 Changepoint is a library for doing change point detection for streams of data.
 
-[![Gitlab pipeline status (branch)](https://img.shields.io/gitlab/pipeline/Redpoll/changepoint/master)](https://gitlab.com/Redpoll/changepoint/pipelines)
 [![Crates.io](https://img.shields.io/crates/v/changepoint)](https://crates.io/crates/changepoint)
-[![Crates.io](https://img.shields.io/crates/l/changepoint)](https://gitlab.com/Redpoll/changepoint/-/blob/master/LICENSE)
 [![docs.rs](https://docs.rs/changepoint/badge.svg)](https://docs.rs/changepoint)
+
+See [this](https://github.com/promised-ai/changepoint/pychangepoint/README.md) for more info on the Python bindings.
 
 ## Algorithms
 Includes the following change point detection algorithms:

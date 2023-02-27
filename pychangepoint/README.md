@@ -1,4 +1,4 @@
-# pychangepoint
+# changepoint
 
 Python bindings for important functionality of the rust library [changepoint](https://crates.io/crates/changepoint), a library for doing change point detection for steams of data.
 
@@ -6,7 +6,7 @@ Python bindings for important functionality of the rust library [changepoint](ht
 
 Install via pip with
 ```bash
-$ python3 -m pip install "pychangepoint"
+$ python3 -m pip install "changepoint"
 ```
 
 __Note__: If there is no binary distribution for your OS, architecture, and Python version, you will need the Rust compiler to build the package and install a Python tool called Maturin:
@@ -20,7 +20,7 @@ See [rustup.rs](https://rustup.rs/) for instructions on installing Rust.
 ## Quick Docs
 By convention in these docs and examples, 
 ```python
-import pychangepoint as chp
+import changepoint as chp
 ```
 
 ### Models

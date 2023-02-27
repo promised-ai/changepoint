@@ -6,7 +6,7 @@ authors = [
     "Baxter Eaves <baxyjr@gmail.com>",
 ]
 edition = "2021"
-repository = "https://gitlab.com/Redpoll/changepoint"
+repository = "https://github.com/promised-ai/changepoint"
 keywords = ["CPD", "Bayesian", "Machine-Learning", "Statistics"]
 categories = ["science"]
 license = "MIT"
@@ -14,7 +14,7 @@ readme = "../README.md"
 description = "Change Point Detection in Rust"
 
 [badges]
-gitlab = { repository = "https://gitlab.com/Redpoll/changepoint/" }
+github = { repository = "https://github.com/promised-ai/changepoint/" }
 maintenance = { status = "actively-developed" }
 
 [features]

@@ -2,7 +2,7 @@
 name = "pychangepoint"
 description = "A Python module for changepoint"
 version = "0.2.0"
-repository = "https://gitlab.com/Redpoll/changepoint"
+repository = "https://github.com/promised-ai/changepoint"
 authors = ["Redpoll <info@redpoll.ai>"]
 edition = "2021"
 license = "MIT"
