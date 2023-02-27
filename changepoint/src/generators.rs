@@ -34,13 +34,16 @@ pub fn discontinuous_jump<R: Rng>(
     switch: usize,
     size: usize,
 ) -> Vec<f64> {
-    let g1 = Gaussian::new(mu_1, sigma_1).unwrap();
-    let g2 = Gaussian::new(mu_2, sigma_2).unwrap();
+    let g1 = Gaussian::new(mu_1, sigma_1).expect("Arguments should be valid");
+    let g2 = Gaussian::new(mu_2, sigma_2).expect("Arguments should be valid");
     [g1.sample(switch, rng), g2.sample(size - switch, rng)].concat()
 }
 
+/// Return the coal mining disasters dataset.
+///
 /// From: R. G. Jarrett. A note on the intervals between coal-mining disasters.
 /// Biometrika, 66(1):191–193,1979
+#[must_use]
 pub fn coal_mining_incidents() -> Vec<u8> {
     // Number of mining explosions in the UK from 1851 to 1962, by year.
     let data: [u8; 111] = [

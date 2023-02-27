@@ -4,7 +4,7 @@ Changepoint is a library for doing change point detection for streams of data.
 [![Crates.io](https://img.shields.io/crates/v/changepoint)](https://crates.io/crates/changepoint)
 [![docs.rs](https://docs.rs/changepoint/badge.svg)](https://docs.rs/changepoint)
 
-See [this](https://github.com/promised-ai/changepoint/pychangepoint/README.md) for more info on the Python bindings.
+See [this](https://github.com/promised-ai/changepoint/blob/master/pychangepoint/README.md) for more info on the Python bindings.
 
 ## Algorithms
 Includes the following change point detection algorithms:

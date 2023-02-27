@@ -1,7 +1,7 @@
 //! Online Bayesian Change Point Detection
 //!
 //! This code is derived from
-//! "Bayesian Online Changepoint Detection"; Ryan Adams, David MacKay; arXiv:0710.3742
+//! "Bayesian Online Changepoint Detection"; Ryan Adams, David `MacKay`; arXiv:0710.3742
 //! Which can be found [here](https://arxiv.org/pdf/0710.3742.pdf).
 
 use crate::traits::BocpdLike;
@@ -85,6 +85,7 @@ where
     }
 
     /// Change the cutoff for mass to be discarded on the tail end of run-lengths
+    #[must_use]
     pub fn with_cutoff(self, cutoff_threadhold: f64) -> Self {
         Self {
             cutoff_threadhold,
@@ -107,6 +108,7 @@ where
 {
     /// Reduce the observed values into a new BOCPD with those observed values integrated into the
     /// prior.
+    #[must_use]
     pub fn collapse_stats(self) -> Self {
         let new_prior: Pr = self.suff_stats.back().map_or(
             self.predictive_prior.clone(),

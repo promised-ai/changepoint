@@ -1,0 +1,167 @@
+name: 'Rust: Build and Test'
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'changepoint/**'
+      - '.github/workflows/rust-build-test.yaml'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  features:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: nightly-2023-02-14
+
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install dependencies
+        run: cargo install cargo-hack
+
+      - name: Run cargo hack
+        working-directory: changepoint
+        run: cargo hack check --each-feature --no-dev-deps
+
+  lint:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: changepoint
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: nightly-2023-02-14
+          components: rustfmt, clippy
+
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: changepoint
+
+      - name: Run rustfmt
+        run: cargo fmt --all -- --check
+
+      - name: Run clippy
+        env:
+          RUSTFLAGS: -C debuginfo=0
+        run: |
+          cargo clippy \
+          --all-features \
+            --workspace
+
+  test:
+    runs-on: ${{ matrix.os }}
+    needs: ["lint", "features"]
+    strategy:
+      fail-fast: true
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    defaults:
+      run:
+        working-directory: changepoint
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: nightly-2023-02-14
+
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: changepoint
+
+      - name: Run tests
+        env:
+          RUSTFLAGS: -C debuginfo=0
+        run: cargo test --workspace
+
+  # benchmark:
+  #   name: Performance regression check
+  #   runs-on: ubuntu-latest
+  #   needs: ["test"]
+  #   steps:
+  #     - uses: actions/checkout@v3
+
+  #     - name: Set up Rust
+  #       uses: dtolnay/rust-toolchain@master
+  #       with:
+  #         toolchain: nightly-2023-02-14
+
+  #     - name: Cache Rust
+  #       uses: Swatinem/rust-cache@v2
+  #       with:
+  #         workspaces: changepoint
+
+  #     - name: Run benchmark
+  #       run: cargo bench -- --output-format bencher | tee output.txt
+
+  #     - name: Store benchmark result
+  #       uses: benchmark-action/github-action-benchmark@v1
+  #       with:
+  #         tool: 'cargo'
+  #         output-file-path: output.txt
+
+  semver-checks:
+    runs-on: ubuntu-latest
+    needs: ["features", "lint", "test"]
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v3
+        with:
+          path: branch
+
+      - name: Checkout master
+        uses: actions/checkout@v3
+        with:
+          ref: master
+          path: master
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install extra cargo tools
+        run: cargo install cargo-semver-checks --locked
+
+      - name: Check for semver-incompatibilities
+        run: cargo semver-checks check-release --manifest-path branch/changepoint/Cargo.toml --baseline-root master/changepoint --verbose
+
+  release:
+    name: release
+    runs-on: ubuntu-latest
+    if: "startsWith(github.ref, 'refs/tags/rust')"
+    needs: ["semver-checks", "features", "lint", "test"]
+    steps:
+      - uses: action/checkout@v3
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Publish to Crates.io
+        run:
+          cargo publish --token ${CRATES_TOKEN}
+        env:
+          CRATES_TOKEN: ${{ secrets.CRATES_TOKEN }}

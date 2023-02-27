@@ -8,18 +8,20 @@ edition = "2021"
 license = "MIT"
 publish = false
 
+[workspace]
+# prevents package from thinking it's in the workspace
+
 [lib]
 name = "pychangepoint"
 crate-type = ["cdylib"]
 
 [dependencies]
-rand = { version = "0.8", features = ["small_rng"] }
-rv = { version = "0.14", features = ["process", "arraydist"] }
 changepoint = { path = "../changepoint" }
 nalgebra = { version = "0.27" }
-
 numpy = "0.18"
 pyo3 = "0.18"
+rand = { version = "0.8", features = ["small_rng"] }
+rv = { version = "0.14", features = ["process", "arraydist"] }
 
 [features]
 extension-module = ["pyo3/extension-module"]

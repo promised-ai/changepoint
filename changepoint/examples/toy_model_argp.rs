@@ -29,7 +29,7 @@ fn line_sequence<'a, R: Rng>(
 
     (0..)
         .scan(start, move |state, _| {
-            *state = *state + delta;
+            *state += delta;
             Some(*state)
         })
         .map(move |x| {
@@ -47,7 +47,7 @@ fn exp_sequence<'a, R: Rng>(
     let noise = Gaussian::new_unchecked(0.0, stddev);
     (0..)
         .scan(start, move |state, _| {
-            *state = *state * (k + 1.0);
+            *state *= k + 1.0;
             Some(*state)
         })
         .map(move |x| {
@@ -100,7 +100,7 @@ fn main() -> Result<(), Box<dyn std::error::Error + 'static>> {
     println!("Generating run-length probabilities");
     let mut rs: Vec<Vec<f64>> = vec![];
     for x in seq.iter() {
-        rs.push(cpd.step(&x).into());
+        rs.push(cpd.step(x).into());
     }
 
     println!("Tracing runlengths");
