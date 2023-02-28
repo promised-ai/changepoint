@@ -20,12 +20,12 @@ pub fn write_data_and_r<T: Display>(
     change_points: &[usize],
 ) -> io::Result<()> {
     // Write Data
-    let data_file_path = format!("{}_data.txt", prefix);
+    let data_file_path = format!("{prefix}_data.txt");
     let mut data_f = File::create(data_file_path)?;
-    data.iter().try_for_each(|d| writeln!(data_f, "{}", d))?;
+    data.iter().try_for_each(|d| writeln!(data_f, "{d}"))?;
 
     // Write R
-    let r_file_path = format!("{}_r.txt", prefix);
+    let r_file_path = format!("{prefix}_r.txt");
     let mut r_f = File::create(r_file_path)?;
 
     let t = r.len();
@@ -33,9 +33,9 @@ pub fn write_data_and_r<T: Display>(
         .enumerate()
         .try_for_each::<_, io::Result<()>>(|(i, rs)| {
             for r in rs {
-                write!(r_f, "{},", r)?;
+                write!(r_f, "{r},")?;
                 if r.is_nan() || r.is_infinite() {
-                    eprintln!("NaN/Infinite value in output: Row {}", i);
+                    eprintln!("NaN/Infinite value in output: Row {i}");
                 }
             }
             for _ in rs.len()..t {
@@ -46,11 +46,11 @@ pub fn write_data_and_r<T: Display>(
         })?;
 
     // Write change points
-    let change_points_path = format!("{}_change_points.txt", prefix);
+    let change_points_path = format!("{prefix}_change_points.txt");
     let mut cp_f = File::create(change_points_path)?;
     change_points
         .iter()
-        .try_for_each(|cp| writeln!(cp_f, "{}", cp))?;
+        .try_for_each(|cp| writeln!(cp_f, "{cp}"))?;
 
     Ok(())
 }

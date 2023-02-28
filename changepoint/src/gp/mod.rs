@@ -337,7 +337,7 @@ where
             .alpha_t
             .component_mul(&ln_beta_stuff)
             .add_scalar(self.alpha0.ln_gamma().0);
-        let nlml_cur_b = col_cumsum(self.u.diagonal().map(|x| x.ln()))
+        let nlml_cur_b = col_cumsum(self.u.diagonal().map(f64::ln))
             - self.alpha_t.map(|at| at.ln_gamma().0)
             + t.scale(0.5 * (2.0 * PI * self.beta0).ln());
         let nlml_cur = nlml_cur_a + nlml_cur_b;
@@ -352,7 +352,7 @@ where
         });
 
         self.last_nlml = nlml_cur;
-        let pred_probs = log_pred_probs.map(|x| x.exp());
+        let pred_probs = log_pred_probs.map(f64::exp);
 
         // Calculate the Run Length Probabilities
         let mut next_r: Vec<f64> = (0..=self.mrc)

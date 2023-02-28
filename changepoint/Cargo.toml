@@ -1,6 +1,6 @@
 [package]
 name = "changepoint"
-version = "0.13.0"
+version = "0.13.1"
 authors = [
     "Mike Schmidt <schmidmt@gmail.com>",
     "Baxter Eaves <baxyjr@gmail.com>",
@@ -12,6 +12,9 @@ categories = ["science"]
 license = "MIT"
 readme = "../README.md"
 description = "Change Point Detection in Rust"
+
+[lib]
+bench = false
 
 [badges]
 github = { repository = "https://github.com/promised-ai/changepoint/" }
