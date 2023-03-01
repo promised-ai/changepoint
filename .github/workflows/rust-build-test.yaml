@@ -162,6 +162,6 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - name: Publish to Crates.io
         run:
-          cargo publish --token ${CRATES_TOKEN}
+          cargo publish --token ${CRATES_TOKEN} -p changepoint
         env:
           CRATES_TOKEN: ${{ secrets.CRATES_TOKEN }}
