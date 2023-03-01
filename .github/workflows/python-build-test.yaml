@@ -139,7 +139,7 @@ jobs:
   release:
     name: Release
     runs-on: ubuntu-latest
-    if: "startsWith(github.ref, 'refs/tags/py')"
+    if: startsWith(github.ref, 'refs/tags/py')
     needs: [linux, windows, macos]
     steps:
       - uses: actions/download-artifact@v3
