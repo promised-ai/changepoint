@@ -5,7 +5,9 @@ use changepoint::utils;
 use pyo3::prelude::*;
 
 #[pymodule]
-fn pychangepoint(_py: Python, m: &PyModule) -> PyResult<()> {
+#[pyo3(name = "changepoint")]
+fn core(_py: Python, m: &PyModule) -> PyResult<()> {
+    m.add("__version__", env!("CARGO_PKG_VERSION"))?;
     m.add_class::<bocpd::Prior>()?;
     m.add_class::<bocpd::Bocpd>()?;
     m.add_class::<argpcpd::ArgpCpd>()?;
