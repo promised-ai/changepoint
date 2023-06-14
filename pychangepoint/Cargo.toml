@@ -18,14 +18,11 @@ crate-type = ["cdylib"]
 [dependencies]
 changepoint = { path = "../changepoint" }
 nalgebra = { version = "0.27" }
-numpy = "0.18"
-pyo3 = "0.18"
+numpy = "0.19"
+pyo3 = { version ="0.19", features = ["extension-module"] }
 rand = { version = "0.8", features = ["small_rng"] }
 rv = { version = "0.14", features = ["process", "arraydist"] }
 
 [features]
 extension-module = ["pyo3/extension-module"]
 default = ["extension-module"]
-
-[package.metadata.maturin]
-name = "changepoint"

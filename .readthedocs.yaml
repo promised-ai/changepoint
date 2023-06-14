@@ -1,0 +1,21 @@
+version: 2
+
+sphinx:
+  builder: html
+  configuration: pychangepoint/docs/source/conf.py
+
+build:
+  # readdocs master now includes a rust toolchain
+  os: "ubuntu-22.04"
+  tools:
+    python: "3.10"
+  jobs:
+    pre_create_environment:
+      - asdf install rust latest
+      - asdf global rust latest
+
+python:
+  install:
+    - requirements: pychangepoint/requirements-dev.txt
+    - method: pip
+      path: pychangepoint

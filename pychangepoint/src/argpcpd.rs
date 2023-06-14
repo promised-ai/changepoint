@@ -30,9 +30,7 @@ use rv::process::gaussian::kernel::{
 ///     Roughly the slope of the logistic hazard function
 /// logistic_hazard_b: float
 ///     The offset of the logistic hazard function.
-#[pyclass(
-    text_signature = "(scale=0.5, length_scale=10, noise_level=0.01, max_lag=3, alpha0=2, beta0=1, logistic_hazard_h=-5, logistic_hazard_a=1, logistic_hazard_b=1)"
-)]
+#[pyclass]
 pub struct ArgpCpd {
     argpcpd: Argpcp<
         AddKernel<ProductKernel<ConstantKernel, RBFKernel>, WhiteKernel>,
