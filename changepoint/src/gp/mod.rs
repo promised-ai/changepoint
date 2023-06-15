@@ -303,7 +303,7 @@ where
                 .copy_from(&kstar.column(0));
             rank_one_update(&mut self.u, &mut kstar, -1.0);
 
-            u.slice_mut((1, 1), (self.u.nrows(), self.u.ncols()))
+            u.view_mut((1, 1), (self.u.nrows(), self.u.ncols()))
                 .copy_from(&self.u);
         }
         self.u = u;
@@ -385,11 +385,11 @@ where
         self.mrc = self.run_length_pr.len();
 
         // Adjust other variables
-        self.u = self.u.slice((0, 0), (self.mrc - 1, self.mrc - 1)).into();
+        self.u = self.u.view((0, 0), (self.mrc - 1, self.mrc - 1)).into();
         self.last_nlml = self.last_nlml.rows_range(0..(self.mrc - 1)).into();
-        self.alpha = self.alpha.slice((0, 0), (self.mrc - 1, 1)).into();
-        self.alpha_t = self.alpha_t.slice((0, 0), (self.mrc - 1, 1)).into();
-        self.beta_t = self.beta_t.slice((0, 0), (self.mrc - 1, 1)).into();
+        self.alpha = self.alpha.view((0, 0), (self.mrc - 1, 1)).into();
+        self.alpha_t = self.alpha_t.view((0, 0), (self.mrc - 1, 1)).into();
+        self.beta_t = self.beta_t.view((0, 0), (self.mrc - 1, 1)).into();
 
         &self.run_length_pr
     }
@@ -438,6 +438,7 @@ fn rank_one_update<N, Dm, Sm, Rx, Sx>(
     sigma: N::RealField,
 ) where
     N: ComplexField + Copy,
+    N::RealField: Copy,
     Dm: Dim,
     Rx: Dim,
     Sm: StorageMut<N, Dm, Dm>,
@@ -466,11 +467,9 @@ fn rank_one_update<N, Dm, Sm, Rx, Sx>(
 
         // updates the terms of L
         let mut xjplus = x.rows_range_mut(j + 1..);
-        let mut col_j = chol.slice_range_mut(j + 1.., j);
-        // temp_jplus -= (wj / N::from_real(diag)) * col_j;
+        let mut col_j = chol.view_range_mut(j + 1.., j);
         xjplus.axpy(-xj / N::from_real(diag), &col_j, N::one());
         if gamma != nalgebra::zero::<N::RealField>() {
-            // col_j = N::from_real(nljj / diag) * col_j  + (N::from_real(nljj * sigma / gamma) * N::conjugate(wj)) * temp_jplus;
             col_j.axpy(
                 N::from_real(new_diag * sigma / gamma) * N::conjugate(xj),
                 &xjplus,
