@@ -16,6 +16,6 @@ build:
 
 python:
   install:
-    - requirements: pychangepoint/requirements-dev.txt
+    - requirements: pychangepoint/requirements-docs.txt
     - method: pip
       path: pychangepoint
