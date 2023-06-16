@@ -1,7 +1,6 @@
 use changepoint::*;
 use criterion::*;
 use rv::prelude::*;
-use std::convert::TryInto;
 
 fn bench_online_bayesian(c: &mut Criterion) {
     let raw_data: &str = include_str!("../../resources/TB3MS.csv");
@@ -11,11 +10,15 @@ fn bench_online_bayesian(c: &mut Criterion) {
         .map(|line| line.split_at(11).1.parse().unwrap())
         .collect();
 
-    c.bench(
-        "BOCPD",
-        ParameterizedBenchmark::new(
-            "process",
-            move |b, nelems| {
+    let mut group = c.benchmark_group("Bocpd");
+    for nelems in (0..500).step_by(100) {
+        let subdata: Vec<f64> = data.iter().take(nelems).copied().collect();
+
+        group.throughput(Throughput::Elements(nelems as u64));
+        group.bench_with_input(
+            BenchmarkId::from_parameter(nelems),
+            &subdata,
+            |b, data| {
                 b.iter(|| {
                     // Create the Bocpd processor
                     let mut cpd = Bocpd::new(
@@ -24,18 +27,14 @@ fn bench_online_bayesian(c: &mut Criterion) {
                     );
 
                     // Feed data into change point detector
-                    let _res: Vec<Vec<f64>> = data
-                        .clone()
-                        .iter()
-                        .take(*nelems)
-                        .map(|d| cpd.step(d).to_vec())
-                        .collect();
-                })
+                    let _res: Vec<Vec<f64>> =
+                        data.iter().map(|d| cpd.step(d).to_vec()).collect();
+                });
             },
-            (0..500).step_by(100),
-        )
-        .throughput(|&nelems| Throughput::Elements(nelems.try_into().unwrap())),
-    );
+        );
+    }
+
+    group.finish();
 }
 
 criterion_group!(benches, bench_online_bayesian);

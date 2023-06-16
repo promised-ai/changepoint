@@ -27,7 +27,7 @@ import changepoint as chp
 #### Bocpd
 
 The Bayesian change point detector, `Bocpd`, takes a prior distribution, aka one of
-```python
+```python,ignore
 chp.BetaBernoulli
 chp.NormalGamma
 chp.NormalInvChiSquared
@@ -47,10 +47,18 @@ where the prior is a `NormalGamma` and the characteristic run length is `12`.
 
 Each step of the data stream, `data`, can be processed by
 ```python
+import random
+import numpy as np
+
+data = [random.gauss() for _ in range(30)] \
+    + [random.gauss(1, 2) for _ in range(30)]
+
 n = len(data)
 change_point_history = np.zeros((n, n))
 for i, x in enumerate(data):
     change_point_history[i, : i + 1] = cpd.step(x)
+
+print(chp.map_changepoints(change_point_history))
 ```
 
 
@@ -69,6 +77,8 @@ ys = []
 for i, x in enumerate(data):
     cps = argp.step(x)
     change_point_history[i, : len(cps)] = cps
+
+print(chp.map_changepoints(change_point_history))
 ```
 
 ## Example

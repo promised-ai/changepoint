@@ -1,6 +1,0 @@
-[workspace]
-members = ["changepoint"]
-default-members = ["changepoint"]
-
-[profile.bench]
-lto = "thin"

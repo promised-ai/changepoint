@@ -21,13 +21,16 @@ env:
 jobs:
   features:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: changepoint
     steps:
       - uses: actions/checkout@v3
 
       - name: Set up Rust
-        uses: dtolnay/rust-toolchain@master
+        uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: nightly-2023-02-14
+          toolchain: stable
 
       - name: Cache Rust
         uses: Swatinem/rust-cache@v2
@@ -47,12 +50,7 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
-
-      - name: Set up Rust
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: nightly-2023-02-14
-          components: rustfmt, clippy
+      - uses: dtolnay/rust-toolchain@stable
 
       - name: Cache Rust
         uses: Swatinem/rust-cache@v2
@@ -83,11 +81,7 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
-
-      - name: Set up Rust
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: nightly-2023-02-14
+      - uses: dtolnay/rust-toolchain@stable
 
       - name: Cache Rust
         uses: Swatinem/rust-cache@v2
@@ -107,9 +101,7 @@ jobs:
   #     - uses: actions/checkout@v3
 
   #     - name: Set up Rust
-  #       uses: dtolnay/rust-toolchain@master
-  #       with:
-  #         toolchain: nightly-2023-02-14
+  #       uses: dtolnay/rust-toolchain@stable
 
   #     - name: Cache Rust
   #       uses: Swatinem/rust-cache@v2
@@ -154,6 +146,9 @@ jobs:
 
   release:
     name: release
+    defaults:
+      run:
+        working-directory: changepoint
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/rust')
     needs: ["semver-checks", "features", "lint", "test"]
@@ -162,6 +157,6 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - name: Publish to Crates.io
         run:
-          cargo publish --token ${CRATES_TOKEN} -p changepoint
+          cargo publish --token ${CRATES_TOKEN}
         env:
           CRATES_TOKEN: ${{ secrets.CRATES_TOKEN }}

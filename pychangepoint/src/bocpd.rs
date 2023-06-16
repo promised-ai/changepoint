@@ -416,7 +416,7 @@ impl BocpdVariant {
 
 /// Online Bayesian Change Point Detection state container
 #[derive(Clone, Debug)]
-#[pyclass(text_signature = "(prior, lam)")]
+#[pyclass]
 /// Create a new BOCPD
 ///
 /// Parameters
