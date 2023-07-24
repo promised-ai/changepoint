@@ -12,7 +12,7 @@ fn pyany_to_f64(x: &PyAny) -> PyResult<f64> {
 }
 
 fn pyany_to_bool(x: &PyAny) -> PyResult<bool> {
-    x.extract()
+    x.is_true()
 }
 
 fn pyany_to_u32(x: &PyAny) -> PyResult<u32> {
