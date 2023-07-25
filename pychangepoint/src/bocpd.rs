@@ -224,7 +224,7 @@ pub fn normal_inv_gamma(m: f64, v: f64, a: f64, b: f64) -> PyResult<Prior> {
 /// ValueError:
 ///     - m, k, v, s2 is infinite or NaN,
 ///     - k, v, s2 <= 0.0
-#[pyfunction]
+#[pyfunction(signature = (m = 0.0, k = 1.0, v = 1.0, s2 = 1.0))]
 #[pyo3(
     name = "NormalInvChiSquared",
     text_signature = "(m = 0.0, k = 1.0, v = 1.0, s2 = 1.0)"
