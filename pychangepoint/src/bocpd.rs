@@ -1,51 +1,12 @@
+use crate::convert;
 use changepoint::BocpdLike;
-use nalgebra::{DMatrix, DVector};
+use nalgebra::DVector;
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use rv::dist::{
     Bernoulli, Beta, Gamma, Gaussian, MvGaussian, NormalGamma,
     NormalInvChiSquared, NormalInvGamma, NormalInvWishart, Poisson,
 };
-
-fn pyany_to_f64(x: &PyAny) -> PyResult<f64> {
-    x.extract()
-}
-
-fn pyany_to_bool(x: &PyAny) -> PyResult<bool> {
-    x.is_true()
-}
-
-fn pyany_to_u32(x: &PyAny) -> PyResult<u32> {
-    x.extract()
-}
-
-fn pyany_to_dvector(x: &PyAny) -> PyResult<DVector<f64>> {
-    Python::with_gil(|py| {
-        let np = PyModule::import(py, "numpy")?;
-        let xs: Vec<f64> = np.getattr("array")?.call1((x,))?.extract()?;
-        Ok(xs)
-    })
-    .map(DVector::from)
-}
-
-fn pyany_to_dmatrix(x: &PyAny) -> PyResult<DMatrix<f64>> {
-    use numpy::PyArray2;
-    Python::with_gil(|py| {
-        let np = PyModule::import(py, "numpy")?;
-        let xs: &PyArray2<f64> = np.getattr("array")?.call1((x,))?.extract()?;
-        let shape = xs.shape();
-
-        let data = unsafe {
-            xs.as_slice().map_err(|_| {
-                PyValueError::new_err("Non-contiguous memory error")
-            })
-        }?;
-
-        let mat: DMatrix<f64> =
-            DMatrix::from_row_slice(shape[0], shape[1], data);
-        Ok(mat)
-    })
-}
 
 /// The variant of the prior distribution
 #[derive(Clone, Debug)]
@@ -111,8 +72,8 @@ impl Prior {
         df: usize,
         scale: &PyAny,
     ) -> PyResult<Self> {
-        let mu_vec = pyany_to_dvector(mu)?;
-        let scale_mat = pyany_to_dmatrix(scale)?;
+        let mu_vec = convert::pyany_to_dvector(mu)?;
+        let scale_mat = convert::pyany_to_dmatrix(scale)?;
         NormalInvWishart::new(mu_vec, k, df, scale_mat)
             .map_err(|err| PyValueError::new_err(err.to_string()))
             .map(|dist| Prior {
@@ -264,7 +225,10 @@ pub fn normal_inv_gamma(m: f64, v: f64, a: f64, b: f64) -> PyResult<Prior> {
 ///     - m, k, v, s2 is infinite or NaN,
 ///     - k, v, s2 <= 0.0
 #[pyfunction]
-#[pyo3(name = "NormalInvChiSquared")]
+#[pyo3(
+    name = "NormalInvChiSquared",
+    text_signature = "(m = 0.0, k = 1.0, v = 1.0, s2 = 1.0)"
+)]
 pub fn normal_inv_chi_squared(
     m: f64,
     k: f64,
@@ -386,28 +350,28 @@ impl BocpdVariant {
     fn step(&mut self, datum: &PyAny) -> PyResult<Vec<f64>> {
         match self {
             Self::NormalGamma(bocpd) => {
-                let x = pyany_to_f64(datum)?;
+                let x = convert::pyany_to_f64(datum)?;
                 Ok(bocpd.step(&x).to_vec())
             }
             Self::NormalInvGamma(bocpd) => {
-                let x = pyany_to_f64(datum)?;
+                let x = convert::pyany_to_f64(datum)?;
                 Ok(bocpd.step(&x).to_vec())
             }
             Self::NormalInvChiSquared(bocpd) => {
-                let x = pyany_to_f64(datum)?;
+                let x = convert::pyany_to_f64(datum)?;
                 Ok(bocpd.step(&x).to_vec())
             }
             Self::BetaBernoulli(bocpd) => {
-                let x = pyany_to_bool(datum)?;
+                let x = convert::pyany_to_bool(datum)?;
                 Ok(bocpd.step(&x).to_vec())
             }
             Self::PoissonGamma(bocpd) => {
-                let x = pyany_to_u32(datum)?;
+                let x = convert::pyany_to_u32(datum)?;
                 Ok(bocpd.step(&x).to_vec())
             }
             Self::NormalInvWishart(bocpd) => {
                 // FIXME: check cardinality
-                let x = pyany_to_dvector(datum)?;
+                let x = convert::pyany_to_dvector(datum)?;
                 Ok(bocpd.step(&x).to_vec())
             }
         }
