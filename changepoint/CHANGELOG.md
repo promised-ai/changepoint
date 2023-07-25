@@ -6,6 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [0.3.1] - 
-- Added Pickle support for `ArgpCpd` and `Bocpd`
-- Fix type error that occurred converting numpy `bool_` and `int` types
-- Added default arguments `NormalInvChiSquared` constructor (`m=0, k=1, v=1, s2=1`)
+
+### Added
+
+- (#7) Added `PartialEq` derive macro to `Bocpd` and `Argpcpd` structs.
