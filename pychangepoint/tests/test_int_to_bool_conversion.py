@@ -4,11 +4,11 @@ def test_int_to_bool():
     The failure is the NumPy types `int64` and `bool_` aren't supported by
     default in pyo3.
     """
-    import changepoint as chp
+    import changepoint as cpt
     import numpy as np
 
-    cpd = chp.Bocpd(
-        prior=chp.BetaBernoulli(),
+    cpd = cpt.Bocpd(
+        prior=cpt.BetaBernoulli(),
         lam=30,
     )
 
