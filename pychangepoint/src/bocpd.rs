@@ -1,54 +1,20 @@
+use crate::convert;
 use changepoint::BocpdLike;
-use nalgebra::{DMatrix, DVector};
-use pyo3::exceptions::PyValueError;
+use nalgebra::DVector;
+use pyo3::exceptions::{PyTypeError, PyValueError};
 use pyo3::prelude::*;
+use pyo3::pyclass::CompareOp;
+use pyo3::types::PyTuple;
 use rv::dist::{
     Bernoulli, Beta, Gamma, Gaussian, MvGaussian, NormalGamma,
     NormalInvChiSquared, NormalInvGamma, NormalInvWishart, Poisson,
 };
 
-fn pyany_to_f64(x: &PyAny) -> PyResult<f64> {
-    x.extract()
-}
-
-fn pyany_to_bool(x: &PyAny) -> PyResult<bool> {
-    x.extract()
-}
-
-fn pyany_to_u32(x: &PyAny) -> PyResult<u32> {
-    x.extract()
-}
-
-fn pyany_to_dvector(x: &PyAny) -> PyResult<DVector<f64>> {
-    Python::with_gil(|py| {
-        let np = PyModule::import(py, "numpy")?;
-        let xs: Vec<f64> = np.getattr("array")?.call1((x,))?.extract()?;
-        Ok(xs)
-    })
-    .map(DVector::from)
-}
-
-fn pyany_to_dmatrix(x: &PyAny) -> PyResult<DMatrix<f64>> {
-    use numpy::PyArray2;
-    Python::with_gil(|py| {
-        let np = PyModule::import(py, "numpy")?;
-        let xs: &PyArray2<f64> = np.getattr("array")?.call1((x,))?.extract()?;
-        let shape = xs.shape();
-
-        let data = unsafe {
-            xs.as_slice().map_err(|_| {
-                PyValueError::new_err("Non-contiguous memory error")
-            })
-        }?;
-
-        let mat: DMatrix<f64> =
-            DMatrix::from_row_slice(shape[0], shape[1], data);
-        Ok(mat)
-    })
-}
+use bincode::{deserialize, serialize};
+use serde::{Deserialize, Serialize};
 
 /// The variant of the prior distribution
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum PriorVariant {
     NormalGamma(NormalGamma),
     NormalInvGamma(NormalInvGamma),
@@ -60,14 +26,61 @@ pub enum PriorVariant {
 
 /// Prior distribution, which also describes the liklihood distribution of the
 /// change point detector.
-#[pyclass]
-#[derive(Clone, Debug)]
+#[pyclass(module = "changepoint")]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Prior {
     pub dist: PriorVariant,
 }
 
+macro_rules! count {
+    () => (0usize);
+    ( $x:tt $($xs:tt)* ) => (1usize + count!($($xs)*));
+}
+
+macro_rules! handle_kind {
+    ($name: ident, $args: ident, $($idx:tt $n:tt),+) => {{
+        if $args.len() == count!($($idx)*) {
+            Self::$name(
+                $(
+                    $args.get_item($idx)?.extract()?,
+                )+
+            )
+        } else {
+            Err(PyTypeError::new_err(format!("Prior kind '{}' requires the following arguments: {}", stringify!($name), stringify!($($n),+))))
+        }
+    }}
+}
+
 #[pymethods]
 impl Prior {
+    #[new]
+    #[pyo3(signature = (kind, *args))]
+    pub fn new(kind: &str, args: &PyTuple) -> PyResult<Self> {
+        match kind {
+            "normal_gamma" => {
+                handle_kind!(normal_gamma, args, 0 m, 1 r, 2 s, 3 v)
+            }
+            "normal_inv_gamma" => {
+                handle_kind!(normal_inv_gamma, args, 0 m, 1 v, 2 a, 3 b)
+            }
+            "normal_inv_chi_squared" => {
+                handle_kind!(normal_inv_chi_squared, args, 0 m, 1 k, 2 v, 3 s2)
+            }
+            "normal_inv_wishart" => {
+                handle_kind!(normal_inv_wishart, args, 0 m, 1 k, 2 df, 3 scale)
+            }
+            "beta_bernoulli" => {
+                handle_kind!(beta_bernoulli, args, 0 alpha, 1 beta)
+            }
+            "poisson_gamma" => {
+                handle_kind!(poisson_gamma, args, 0 shape, 1 rate)
+            }
+            unknown_kind => Err(PyTypeError::new_err(format!(
+                "Unknown prior kind '{unknown_kind}'"
+            ))),
+        }
+    }
+
     #[staticmethod]
     #[pyo3(signature = (m = 0.0, r = 1.0, s = 1.0, v = 1.0))]
     pub fn normal_gamma(m: f64, r: f64, s: f64, v: f64) -> PyResult<Self> {
@@ -111,8 +124,8 @@ impl Prior {
         df: usize,
         scale: &PyAny,
     ) -> PyResult<Self> {
-        let mu_vec = pyany_to_dvector(mu)?;
-        let scale_mat = pyany_to_dmatrix(scale)?;
+        let mu_vec = convert::pyany_to_dvector(mu)?;
+        let scale_mat = convert::pyany_to_dmatrix(scale)?;
         NormalInvWishart::new(mu_vec, k, df, scale_mat)
             .map_err(|err| PyValueError::new_err(err.to_string()))
             .map(|dist| Prior {
@@ -181,6 +194,19 @@ impl Prior {
                 g.rate()
             ),
         }
+    }
+
+    pub fn __setstate__(&mut self, state: Vec<u8>) -> PyResult<()> {
+        self.dist = deserialize(&state).unwrap();
+        Ok(())
+    }
+
+    pub fn __getstate__(&self) -> PyResult<Vec<u8>> {
+        Ok(serialize(&self.dist).unwrap())
+    }
+
+    pub fn __getnewargs__(&self) -> PyResult<(String, f64, f64, f64, f64)> {
+        Ok(("normal_gamma".to_string(), 0.0, 1.0, 1.0, 1.0))
     }
 }
 
@@ -263,8 +289,11 @@ pub fn normal_inv_gamma(m: f64, v: f64, a: f64, b: f64) -> PyResult<Prior> {
 /// ValueError:
 ///     - m, k, v, s2 is infinite or NaN,
 ///     - k, v, s2 <= 0.0
-#[pyfunction]
-#[pyo3(name = "NormalInvChiSquared")]
+#[pyfunction(signature = (m = 0.0, k = 1.0, v = 1.0, s2 = 1.0))]
+#[pyo3(
+    name = "NormalInvChiSquared",
+    text_signature = "(m = 0.0, k = 1.0, v = 1.0, s2 = 1.0)"
+)]
 pub fn normal_inv_chi_squared(
     m: f64,
     k: f64,
@@ -357,7 +386,7 @@ fn dist_to_bocpd(dist: Prior, lambda: f64) -> BocpdVariant {
 
 /// The variant of the `Bocpd`. Describes the prior, likelihood, and the input
 /// data type.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub enum BocpdVariant {
     NormalGamma(changepoint::Bocpd<f64, Gaussian, NormalGamma>),
     NormalInvGamma(changepoint::Bocpd<f64, Gaussian, NormalInvGamma>),
@@ -386,28 +415,28 @@ impl BocpdVariant {
     fn step(&mut self, datum: &PyAny) -> PyResult<Vec<f64>> {
         match self {
             Self::NormalGamma(bocpd) => {
-                let x = pyany_to_f64(datum)?;
+                let x = convert::pyany_to_f64(datum)?;
                 Ok(bocpd.step(&x).to_vec())
             }
             Self::NormalInvGamma(bocpd) => {
-                let x = pyany_to_f64(datum)?;
+                let x = convert::pyany_to_f64(datum)?;
                 Ok(bocpd.step(&x).to_vec())
             }
             Self::NormalInvChiSquared(bocpd) => {
-                let x = pyany_to_f64(datum)?;
+                let x = convert::pyany_to_f64(datum)?;
                 Ok(bocpd.step(&x).to_vec())
             }
             Self::BetaBernoulli(bocpd) => {
-                let x = pyany_to_bool(datum)?;
+                let x = convert::pyany_to_bool(datum)?;
                 Ok(bocpd.step(&x).to_vec())
             }
             Self::PoissonGamma(bocpd) => {
-                let x = pyany_to_u32(datum)?;
+                let x = convert::pyany_to_u32(datum)?;
                 Ok(bocpd.step(&x).to_vec())
             }
             Self::NormalInvWishart(bocpd) => {
                 // FIXME: check cardinality
-                let x = pyany_to_dvector(datum)?;
+                let x = convert::pyany_to_dvector(datum)?;
                 Ok(bocpd.step(&x).to_vec())
             }
         }
@@ -415,8 +444,8 @@ impl BocpdVariant {
 }
 
 /// Online Bayesian Change Point Detection state container
-#[derive(Clone, Debug)]
-#[pyclass]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[pyclass(module = "changepoint")]
 /// Create a new BOCPD
 ///
 /// Parameters
@@ -458,5 +487,29 @@ impl Bocpd {
     /// Observe a new datum. Returns the run length probabilities for each step.
     pub fn step(&mut self, datum: &PyAny) -> PyResult<Vec<f64>> {
         self.bocpd.step(datum).map(|rs| rs.to_vec())
+    }
+
+    pub fn __setstate__(&mut self, state: Vec<u8>) -> PyResult<()> {
+        self.bocpd = deserialize(&state).unwrap();
+        Ok(())
+    }
+
+    pub fn __getstate__(&self) -> PyResult<Vec<u8>> {
+        Ok(serialize(&self.bocpd).unwrap())
+    }
+
+    pub fn __getnewargs__(&self) -> PyResult<(Prior, f64)> {
+        Ok((Prior::beta_bernoulli(0.5, 0.5).unwrap(), 1.0))
+    }
+
+    fn __richcmp__(&self, other: &Self, op: CompareOp) -> PyResult<bool> {
+        match op {
+            CompareOp::Lt => Ok(false),
+            CompareOp::Le => Ok(false),
+            CompareOp::Eq => Ok(self.bocpd == other.bocpd),
+            CompareOp::Ne => Ok(self.bocpd != other.bocpd),
+            CompareOp::Gt => Ok(false),
+            CompareOp::Ge => Ok(false),
+        }
     }
 }

@@ -1,5 +1,6 @@
 pub mod argpcpd;
 pub mod bocpd;
+pub(crate) mod convert;
 
 use changepoint::utils;
 use pyo3::prelude::*;

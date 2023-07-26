@@ -1,6 +1,6 @@
 [package]
 name = "changepoint"
-version = "0.14.0"
+version = "0.14.1"
 authors = [
     "Mike Schmidt <schmidmt@gmail.com>",
     "Baxter Eaves <baxyjr@gmail.com>",
