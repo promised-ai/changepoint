@@ -20,7 +20,7 @@ See [rustup.rs](https://rustup.rs/) for instructions on installing Rust.
 ## Quick Docs
 By convention in these docs and examples, 
 ```python
-import changepoint as chp
+import changepoint as cpt
 ```
 
 ### Models
@@ -28,18 +28,18 @@ import changepoint as chp
 
 The Bayesian change point detector, `Bocpd`, takes a prior distribution, aka one of
 ```python,ignore
-chp.BetaBernoulli
-chp.NormalGamma
-chp.NormalInvChiSquared
-chp.NormalInvGamma
-chp.NormalInvWishart
-chp.PoissonGamma
+cpt.BetaBernoulli
+cpt.NormalGamma
+cpt.NormalInvChiSquared
+cpt.NormalInvGamma
+cpt.NormalInvWishart
+cpt.PoissonGamma
 ```
 
 Then, a `Bocpd` may be created:
 ```python
-cpd = chp.Bocpd(
-    prior=chp.NormalGamma(),
+cpd = cpt.Bocpd(
+    prior=cpt.NormalGamma(),
     lam=12,
 )
 ```
@@ -58,7 +58,7 @@ change_point_history = np.zeros((n, n))
 for i, x in enumerate(data):
     change_point_history[i, : i + 1] = cpd.step(x)
 
-print(chp.map_changepoints(change_point_history))
+print(cpt.map_changepoints(change_point_history))
 ```
 
 
@@ -69,7 +69,7 @@ where `c` is the scale, `X_{i-l-1, ..., i-1}` is the previous vales in the seque
 It behaves similarity to the `Bocpd` class; for example,
 
 ```python
-argp = chp.ArgpCpd(logistic_hazard_h=-2, scale=3, noise_level=0.01)
+argp = cpt.ArgpCpd(logistic_hazard_h=-2, scale=3, noise_level=0.01)
 n = len(data)
 change_point_history = np.zeros((n + 1, n + 1))
 xs = []
@@ -78,7 +78,7 @@ for i, x in enumerate(data):
     cps = argp.step(x)
     change_point_history[i, : len(cps)] = cps
 
-print(chp.map_changepoints(change_point_history))
+print(cpt.map_changepoints(change_point_history))
 ```
 
 ## Example

@@ -1,7 +1,10 @@
+use bincode::{deserialize, serialize};
 use changepoint::gp::Argpcp;
 use changepoint::BocpdLike;
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
+use pyo3::pyclass::CompareOp;
+use pyo3::types::PyBytes;
 use rv::process::gaussian::kernel::{
     AddKernel, ConstantKernel, ProductKernel, RBFKernel, WhiteKernel,
 };
@@ -30,7 +33,7 @@ use rv::process::gaussian::kernel::{
 ///     Roughly the slope of the logistic hazard function
 /// logistic_hazard_b: float
 ///     The offset of the logistic hazard function.
-#[pyclass]
+#[pyclass(module = "changepoint")]
 pub struct ArgpCpd {
     argpcpd: Argpcp<
         AddKernel<ProductKernel<ConstantKernel, RBFKernel>, WhiteKernel>,
@@ -104,5 +107,34 @@ impl ArgpCpd {
     ///     A list of change point probabilities.
     pub fn step(&mut self, datum: f64) -> Vec<f64> {
         self.argpcpd.step(&datum).to_vec()
+    }
+
+    pub fn __setstate__(
+        &mut self,
+        py: Python,
+        state: PyObject,
+    ) -> PyResult<()> {
+        match state.extract::<&PyBytes>(py) {
+            Ok(s) => {
+                self.argpcpd = deserialize(s.as_bytes()).unwrap();
+                Ok(())
+            }
+            Err(e) => Err(e),
+        }
+    }
+
+    pub fn __getstate__(&self, py: Python) -> PyResult<PyObject> {
+        Ok(PyBytes::new(py, &serialize(&self.argpcpd).unwrap()).to_object(py))
+    }
+
+    fn __richcmp__(&self, other: &Self, op: CompareOp) -> PyResult<bool> {
+        match op {
+            CompareOp::Lt => Ok(false),
+            CompareOp::Le => Ok(false),
+            CompareOp::Eq => Ok(self.argpcpd == other.argpcpd),
+            CompareOp::Ne => Ok(self.argpcpd != other.argpcpd),
+            CompareOp::Gt => Ok(false),
+            CompareOp::Ge => Ok(false),
+        }
     }
 }
