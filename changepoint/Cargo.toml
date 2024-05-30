@@ -49,3 +49,11 @@ harness = false
 [[bench]]
 name = "bocpd_truncated"
 harness = false
+
+[[bench]]
+name = "argpcpd"
+harness = false
+
+[profile.profiling]
+inherits = "release"
+debug = 2
