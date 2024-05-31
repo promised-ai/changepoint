@@ -385,11 +385,11 @@ where
         self.mrc = self.run_length_pr.len();
 
         // Adjust other variables
-        self.u = self.u.view((0, 0), (self.mrc - 1, self.mrc - 1)).into();
+        self.u.resize_mut(self.mrc - 1, self.mrc - 1, 0.0);
         self.last_nlml = self.last_nlml.rows_range(0..(self.mrc - 1)).into();
-        self.alpha = self.alpha.view((0, 0), (self.mrc - 1, 1)).into();
-        self.alpha_t = self.alpha_t.view((0, 0), (self.mrc - 1, 1)).into();
-        self.beta_t = self.beta_t.view((0, 0), (self.mrc - 1, 1)).into();
+        self.alpha.resize_mut(self.mrc - 1, 1, 0.0);
+        self.alpha_t.resize_mut(self.mrc - 1, 1, 0.0);
+        self.beta_t.resize_mut(self.mrc - 1, 1, 0.0);
 
         &self.run_length_pr
     }
