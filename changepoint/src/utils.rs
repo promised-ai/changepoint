@@ -96,6 +96,11 @@ pub fn infer_changepoints<R: Rng>(
     rng: &mut R,
 ) -> Result<Vec<f64>, CategoricalError> {
     let n = rs.len();
+
+    if n == 0 {
+        return Ok(vec![]);
+    }
+
     let dists: Vec<Categorical> =
         rs.iter()
             .map(|r| Categorical::new(r))
@@ -158,7 +163,7 @@ pub fn infer_pseudo_cmf_changepoints<R: Rng>(
 /// set of change-points.
 #[must_use]
 pub fn map_changepoints(r: &[Vec<f64>]) -> Vec<usize> {
-    let mut s = r.len() - 1;
+    let mut s = r.len().saturating_sub(1);
     let mut change_points: Vec<usize> = vec![];
     while s != 0 {
         let most_likely_runlength: usize =
