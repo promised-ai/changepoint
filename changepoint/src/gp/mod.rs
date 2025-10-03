@@ -4,9 +4,9 @@ use std::{f64::consts::PI, ops::AddAssign};
 
 use crate::BocpdLike;
 use nalgebra::{
-    allocator::Allocator, constraint::SameNumberOfRows,
-    constraint::ShapeConstraint, storage::StorageMut, ComplexField, DMatrix,
-    DVector, DefaultAllocator, Dim, Matrix, OMatrix, Scalar, Vector, U1,
+    ComplexField, DMatrix, DVector, DefaultAllocator, Dim, Matrix, OMatrix,
+    Scalar, U1, Vector, allocator::Allocator, constraint::SameNumberOfRows,
+    constraint::ShapeConstraint, storage::StorageMut,
 };
 use num_traits::Zero;
 use rv::{
@@ -14,7 +14,6 @@ use rv::{
     process::gaussian::kernel::Kernel,
     traits::Sampleable,
 };
-use special::Gamma;
 
 #[cfg(feature = "serde1")]
 use serde::{Deserialize, Serialize};
@@ -25,11 +24,7 @@ where
     X: Zero + std::fmt::Debug + std::cmp::PartialEq + Copy + 'static,
 {
     DMatrix::from_fn(obs.len(), order, |i, j| {
-        if i <= j {
-            X::zero()
-        } else {
-            obs[i - j - 1]
-        }
+        if i <= j { X::zero() } else { obs[i - j - 1] }
     })
 }
 
@@ -415,7 +410,7 @@ where
     N: Scalar + AddAssign<N> + Zero + Copy,
     R: Dim,
     C: Dim,
-    DefaultAllocator: Allocator<N, R, C>,
+    DefaultAllocator: Allocator<R, C>,
 {
     let r_out = R::from_usize(mat.nrows());
     let c_out = C::from_usize(mat.ncols());
@@ -495,7 +490,7 @@ where
     R2: Dim,
     S2: StorageMut<N, R2, C2>,
     ShapeConstraint: SameNumberOfRows<R2, Dm>,
-    DefaultAllocator: Allocator<N, R2, C2>,
+    DefaultAllocator: Allocator<R2, C2>,
 {
     let mut b = b.clone_owned();
     chol.solve_lower_triangular_mut(&mut b);
@@ -506,7 +501,7 @@ where
 mod tests {
     use super::*;
     use crate::{generators, utils::map_changepoints};
-    use rand::{prelude::SmallRng, SeedableRng};
+    use rand::{SeedableRng, prelude::SmallRng};
     use rv::process::gaussian::kernel::{
         ConstantKernel, RBFKernel, WhiteKernel,
     };

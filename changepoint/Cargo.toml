@@ -5,7 +5,7 @@ authors = [
     "Mike Schmidt <schmidmt@gmail.com>",
     "Baxter Eaves <baxyjr@gmail.com>",
 ]
-edition = "2021"
+edition = "2024"
 repository = "https://github.com/promised-ai/changepoint"
 keywords = ["CPD", "Bayesian", "Machine-Learning", "Statistics"]
 categories = ["science"]
@@ -24,21 +24,24 @@ maintenance = { status = "actively-developed" }
 serde1 = ["serde", "rv/serde1"]
 
 [dependencies]
-rand = { version = "0.8", features = ["small_rng"] }
-rv = { version = "0.18", features = ["process", "arraydist"] }
-nalgebra = { version = "0.32" }
-serde = {version = "1", optional = true, features=["derive"]}
-serde_derive = {version = "1", optional = true}
-ndarray = { version = "0.15", features = ["serde", "approx", "rayon"] }
-derive_more = "0.99"
+rand = { version = "0.9", features = ["small_rng"] }
+rv = { version = "0.19", features = [
+    "process",
+    "arraydist",
+], git = "https://github.com/promised-ai/rv.git", branch = "release/v0.19.0" }
+nalgebra = { version = "0.34" }
+serde = { version = "1", optional = true, features = ["derive"] }
+serde_derive = { version = "1", optional = true }
+ndarray = { version = "0.16", features = ["serde", "approx", "rayon"] }
+derive_more = { version = "2.0", features = ["full"] }
 rayon = "1.4"
 num-traits = "0.2"
 approx = "0.5"
-special = "0.10"
+special = "0.11"
 
 [dev-dependencies]
 assert = "0.7"
-criterion = "0.5"
+criterion = "0.7"
 serde_json = "1"
 
 # Benchmarks
