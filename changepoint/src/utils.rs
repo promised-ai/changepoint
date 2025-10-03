@@ -2,7 +2,8 @@
 
 use rand::Rng;
 use rv::{
-    misc::argmax, prelude::Categorical, prelude::CategoricalError, prelude::Rv,
+    misc::argmax, prelude::Categorical, prelude::CategoricalError,
+    prelude::Sampleable,
 };
 use std::fmt::Display;
 use std::fs::File;

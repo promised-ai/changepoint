@@ -48,7 +48,7 @@ where
 impl<X, Fx, Pr> BocpdTruncated<X, Fx, Pr>
 where
     Fx: Rv<X> + HasSuffStat<X>,
-    Pr: ConjugatePrior<X, Fx, Posterior = Pr> + Clone,
+    Pr: ConjugatePrior<X, Fx, Posterior = Pr> + HasDensity<Fx> + Clone,
     Fx::Stat: Clone,
 {
     /// Create a new Bocpd analyzer
@@ -103,7 +103,7 @@ where
 impl<X, Fx, Pr> BocpdTruncated<X, Fx, Pr>
 where
     Fx: Rv<X> + HasSuffStat<X>,
-    Pr: ConjugatePrior<X, Fx, Posterior = Pr> + Clone,
+    Pr: ConjugatePrior<X, Fx, Posterior = Pr> + HasDensity<Fx> + Clone,
     Fx::Stat: Clone,
 {
     /// Reduce the observed values into a new BOCPD with those observed values integrated into the
@@ -130,7 +130,7 @@ where
 impl<X, Fx, Pr> BocpdLike<X> for BocpdTruncated<X, Fx, Pr>
 where
     Fx: Rv<X> + HasSuffStat<X>,
-    Pr: ConjugatePrior<X, Fx, Posterior = Pr> + Clone,
+    Pr: ConjugatePrior<X, Fx, Posterior = Pr> + HasDensity<Fx> + Clone,
     Fx::Stat: Clone,
 {
     type Fx = Fx;

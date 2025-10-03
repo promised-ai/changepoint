@@ -25,7 +25,7 @@ serde1 = ["serde", "rv/serde1"]
 
 [dependencies]
 rand = { version = "0.8", features = ["small_rng"] }
-rv = { version = "0.16", features = ["process", "arraydist"] }
+rv = { version = "0.18", features = ["process", "arraydist"] }
 nalgebra = { version = "0.32" }
 serde = {version = "1", optional = true, features=["derive"]}
 serde_derive = {version = "1", optional = true}

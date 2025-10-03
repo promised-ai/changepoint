@@ -10,8 +10,9 @@ use nalgebra::{
 };
 use num_traits::Zero;
 use rv::{
-    prelude::{Gaussian, NormalGamma, Rv, StudentsT as RvStudentsT},
+    prelude::{Gaussian, HasDensity, NormalGamma, StudentsT as RvStudentsT},
     process::gaussian::kernel::Kernel,
+    traits::Sampleable,
 };
 use special::Gamma;
 
@@ -207,11 +208,13 @@ impl StudentT {
     }
 }
 
-impl Rv<f64> for StudentT {
+impl HasDensity<f64> for StudentT {
     fn ln_f(&self, x: &f64) -> f64 {
         self.st.ln_f(&((x - self.mean) / self.sigma))
     }
+}
 
+impl Sampleable<f64> for StudentT {
     fn draw<R: rand::Rng>(&self, rng: &mut R) -> f64 {
         let s: f64 = self.st.draw(rng);
         s * self.sigma + self.mean
@@ -336,9 +339,9 @@ where
         let nlml_cur_a = self
             .alpha_t
             .component_mul(&ln_beta_stuff)
-            .add_scalar(self.alpha0.ln_gamma().0);
+            .add_scalar(special::Gamma::ln_gamma(self.alpha0).0);
         let nlml_cur_b = col_cumsum(self.u.diagonal().map(f64::ln))
-            - self.alpha_t.map(|at| at.ln_gamma().0)
+            - self.alpha_t.map(|at| special::Gamma::ln_gamma(at).0)
             + t.scale(0.5 * (2.0 * PI * self.beta0).ln());
         let nlml_cur = nlml_cur_a + nlml_cur_b;
 

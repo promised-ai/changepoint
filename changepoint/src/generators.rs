@@ -1,7 +1,7 @@
 //! Functions to generate random sequences
 use rand::Rng;
 use rv::dist::Gaussian;
-use rv::traits::Rv;
+use rv::traits::Sampleable;
 
 /// Generate a series of draws from two Gaussian process that switches
 /// at `switch` into the sequence.
