@@ -5,7 +5,7 @@
 //! Which can be found [here](https://arxiv.org/pdf/0710.3742.pdf).
 
 use crate::traits::BocpdLike;
-use rand::{rngs::SmallRng, SeedableRng};
+use rand::{SeedableRng, rngs::SmallRng};
 use rv::prelude::*;
 use std::collections::VecDeque;
 
@@ -268,8 +268,8 @@ mod tests {
     use super::*;
     use crate::generators;
     use crate::utils::{map_changepoints, max_error};
-    use rand::rngs::StdRng;
     use rand::SeedableRng;
+    use rand::rngs::StdRng;
 
     #[test]
     fn each_vec_is_a_probability_dist() {

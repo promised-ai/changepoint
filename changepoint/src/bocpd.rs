@@ -5,7 +5,7 @@
 //! Which can be found [here](https://arxiv.org/pdf/0710.3742.pdf).
 
 use crate::traits::BocpdLike;
-use rand::{prelude::SmallRng, SeedableRng};
+use rand::{SeedableRng, prelude::SmallRng};
 use rv::prelude::*;
 use std::collections::VecDeque;
 
@@ -229,7 +229,7 @@ where
 mod tests {
     use super::*;
     use crate::utils::{infer_changepoints, map_changepoints, max_error};
-    use crate::{generators, BocpdLike};
+    use crate::{BocpdLike, generators};
     use rand::SeedableRng;
 
     #[test]
@@ -270,8 +270,8 @@ mod tests {
     }
 
     #[test]
-    fn detect_obvious_switch_p_cp(
-    ) -> Result<(), Box<dyn std::error::Error + 'static>> {
+    fn detect_obvious_switch_p_cp()
+    -> Result<(), Box<dyn std::error::Error + 'static>> {
         let mut rng = SmallRng::seed_from_u64(0xABCD);
         let data = generators::discontinuous_jump(
             &mut rng, 0.0, 1.0, 10.0, 5.0, 500, 700,

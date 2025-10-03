@@ -1,9 +1,9 @@
 //! A set of toy models that produce deterministic changes
 
+use changepoint::BocpdLike;
 use changepoint::gp::Argpcp;
 use changepoint::utils;
-use changepoint::BocpdLike;
-use rand::{rngs::SmallRng, Rng, SeedableRng};
+use rand::{Rng, SeedableRng, rngs::SmallRng};
 use rv::prelude::*;
 use rv::process::gaussian::kernel::{ConstantKernel, RBFKernel, WhiteKernel};
 use std::fs::File;
