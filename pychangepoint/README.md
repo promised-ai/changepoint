@@ -50,8 +50,9 @@ Each step of the data stream, `data`, can be processed by
 import random
 import numpy as np
 
-data = [random.gauss() for _ in range(30)] \
-    + [random.gauss(1, 2) for _ in range(30)]
+data = [random.gauss() for _ in range(30)] + [
+    random.gauss(1, 2) for _ in range(30)
+]
 
 n = len(data)
 change_point_history = np.zeros((n, n))

@@ -62,7 +62,7 @@ where
     /// use changepoint::BocpdTruncated;
     /// use rv::prelude::*;
     ///
-    /// let cpd = BocpdTruncated::new(
+    /// let cpd: BocpdTruncated<f64, _, _> = BocpdTruncated::new(
     ///     250.0,
     ///     NormalGamma::new_unchecked(0.0, 1.0, 1.0, 1.0),
     /// );

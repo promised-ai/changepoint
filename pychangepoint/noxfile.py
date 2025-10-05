@@ -31,5 +31,6 @@ def test_notebook(session: nox.Session):
 
 @nox.session
 def lint(session):
-    session.install("flake8")
-    session.run("flake8")
+    session.install("ruff")
+    session.run("ruff", "check", ".")
+    session.run("ruff", "format", "--check", ".")
