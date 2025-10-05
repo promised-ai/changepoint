@@ -83,4 +83,4 @@ print(cpt.map_changepoints(change_point_history))
 
 ## Example
 
-An example IPython notebook can be found [here](https://github.com/promised-ai/changepoint/blob/master/pychangepoint/ChangePointExample.ipynb).
+An example IPython notebook can be found [here](ChangePointExample.ipynb).

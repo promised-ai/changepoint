@@ -1,16 +1,16 @@
 use crate::convert;
 use changepoint::BocpdLike;
 use nalgebra::DVector;
+use numpy::{PyArrayLike1, PyArrayLike2, TypeMustMatch};
 use pyo3::exceptions::{PyTypeError, PyValueError};
 use pyo3::prelude::*;
 use pyo3::pyclass::CompareOp;
-use pyo3::types::PyTuple;
+use pyo3::types::{PyList, PyTuple};
 use rv::dist::{
     Bernoulli, Beta, Gamma, Gaussian, MvGaussian, NormalGamma,
     NormalInvChiSquared, NormalInvGamma, NormalInvWishart, Poisson,
 };
 
-use bincode::{deserialize, serialize};
 use serde::{Deserialize, Serialize};
 
 /// The variant of the prior distribution
@@ -55,7 +55,7 @@ macro_rules! handle_kind {
 impl Prior {
     #[new]
     #[pyo3(signature = (kind, *args))]
-    pub fn new(kind: &str, args: &PyTuple) -> PyResult<Self> {
+    pub fn new(kind: &str, args: &Bound<PyTuple>) -> PyResult<Self> {
         match kind {
             "normal_gamma" => {
                 handle_kind!(normal_gamma, args, 0 m, 1 r, 2 s, 3 v)
@@ -119,14 +119,14 @@ impl Prior {
     #[staticmethod]
     #[pyo3(signature = (mu, k, df, scale))]
     pub fn normal_inv_wishart(
-        mu: &PyAny,
+        mu: PyArrayLike1<f64, TypeMustMatch>,
         k: f64,
         df: usize,
-        scale: &PyAny,
+        scale: PyArrayLike2<f64, TypeMustMatch>,
     ) -> PyResult<Self> {
-        let mu_vec = convert::pyany_to_dvector(mu)?;
-        let scale_mat = convert::pyany_to_dmatrix(scale)?;
-        NormalInvWishart::new(mu_vec, k, df, scale_mat)
+        let mu = convert::pyarray1_to_dvector(mu)?;
+        let scale_mat = convert::pyarray2_to_dmatrix(scale)?;
+        NormalInvWishart::new(mu, k, df, scale_mat)
             .map_err(|err| PyValueError::new_err(err.to_string()))
             .map(|dist| Prior {
                 dist: PriorVariant::NormalInvWishart(dist),
@@ -197,12 +197,19 @@ impl Prior {
     }
 
     pub fn __setstate__(&mut self, state: Vec<u8>) -> PyResult<()> {
-        self.dist = deserialize(&state).unwrap();
+        let config = bincode::config::standard();
+        self.dist =
+            bincode::serde::decode_from_slice(&state, config).unwrap().0;
         Ok(())
     }
 
     pub fn __getstate__(&self) -> PyResult<Vec<u8>> {
-        Ok(serialize(&self.dist).unwrap())
+        let config = bincode::config::standard();
+
+        let encoded =
+            bincode::serde::encode_to_vec(&self.dist, config).unwrap();
+
+        Ok(encoded)
     }
 
     pub fn __getnewargs__(&self) -> PyResult<(String, f64, f64, f64, f64)> {
@@ -307,10 +314,10 @@ pub fn normal_inv_chi_squared(
 #[pyfunction]
 #[pyo3(name = "NormalInvWishart")]
 pub fn normal_inv_wishart(
-    mu: &PyAny,
+    mu: PyArrayLike1<f64, TypeMustMatch>,
     k: f64,
     df: usize,
-    scale: &PyAny,
+    scale: PyArrayLike2<f64, TypeMustMatch>,
 ) -> PyResult<Prior> {
     Prior::normal_inv_wishart(mu, k, df, scale)
 }
@@ -412,7 +419,10 @@ impl BocpdVariant {
     }
 
     /// Observe a new datum. Returns the run length probabilities for each step.
-    fn step(&mut self, datum: &PyAny) -> PyResult<Vec<f64>> {
+    fn step<'py>(
+        &mut self,
+        datum: &'py Bound<'py, PyAny>,
+    ) -> PyResult<Vec<f64>> {
         match self {
             Self::NormalGamma(bocpd) => {
                 let x = convert::pyany_to_f64(datum)?;
@@ -436,7 +446,8 @@ impl BocpdVariant {
             }
             Self::NormalInvWishart(bocpd) => {
                 // FIXME: check cardinality
-                let x = convert::pyany_to_dvector(datum)?;
+                let datum = datum.extract()?;
+                let x = convert::pyarray1_to_dvector(datum)?;
                 Ok(bocpd.step(&x).to_vec())
             }
         }
@@ -485,17 +496,38 @@ impl Bocpd {
     }
 
     /// Observe a new datum. Returns the run length probabilities for each step.
-    pub fn step(&mut self, datum: &PyAny) -> PyResult<Vec<f64>> {
+    pub fn step<'py>(
+        &mut self,
+        datum: &'py Bound<'py, PyAny>,
+    ) -> PyResult<Vec<f64>> {
         self.bocpd.step(datum).map(|rs| rs.to_vec())
     }
 
-    pub fn __setstate__(&mut self, state: Vec<u8>) -> PyResult<()> {
-        self.bocpd = deserialize(&state).unwrap();
-        Ok(())
+    pub fn __setstate__(
+        &mut self,
+        py: Python,
+        state: Py<PyAny>,
+    ) -> PyResult<()> {
+        let config = bincode::config::standard();
+        match state.extract::<Vec<u8>>(py) {
+            Ok(s) => {
+                self.bocpd =
+                    bincode::serde::decode_from_slice(&s, config).unwrap().0;
+                Ok(())
+            }
+            Err(e) => Err(e),
+        }
     }
 
-    pub fn __getstate__(&self) -> PyResult<Vec<u8>> {
-        Ok(serialize(&self.bocpd).unwrap())
+    pub fn __getstate__<'py>(
+        &self,
+        py: Python<'py>,
+    ) -> PyResult<Bound<'py, PyAny>> {
+        let config = bincode::config::standard();
+        let bytes = bincode::serde::encode_to_vec(&self.bocpd, config).unwrap();
+        let list = PyList::new(py, bytes)?;
+
+        Ok(list.into_any())
     }
 
     pub fn __getnewargs__(&self) -> PyResult<(Prior, f64)> {

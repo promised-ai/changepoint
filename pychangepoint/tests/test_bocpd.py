@@ -44,7 +44,7 @@ def test_beta_poission_gamma(dtype):
 @pytest.mark.parametrize(
     "prior", [cpt.NormalGamma, cpt.NormalInvGamma, cpt.NormalInvChiSquared]
 )
-@pytest.mark.parametrize("dtype", [float, np.float_, np.single, np.double])
+@pytest.mark.parametrize("dtype", [float, np.float64, np.single, np.double])
 def test_normal_x(prior, dtype):
     seq = np.array(np.random.randn(20), dtype=dtype)
     cpd = cpt.Bocpd(

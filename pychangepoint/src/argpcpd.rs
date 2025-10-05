@@ -1,10 +1,8 @@
-use bincode::{deserialize, serialize};
 use changepoint::gp::Argpcp;
 use changepoint::BocpdLike;
-use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::pyclass::CompareOp;
-use pyo3::types::PyBytes;
+use pyo3::{exceptions::PyValueError, types::PyList};
 use rv::process::gaussian::kernel::{
     AddKernel, ConstantKernel, ProductKernel, RBFKernel, WhiteKernel,
 };
@@ -112,19 +110,29 @@ impl ArgpCpd {
     pub fn __setstate__(
         &mut self,
         py: Python,
-        state: PyObject,
+        state: Py<PyAny>,
     ) -> PyResult<()> {
-        match state.extract::<&PyBytes>(py) {
+        let config = bincode::config::standard();
+        match state.extract::<Vec<u8>>(py) {
             Ok(s) => {
-                self.argpcpd = deserialize(s.as_bytes()).unwrap();
+                self.argpcpd =
+                    bincode::serde::decode_from_slice(&s, config).unwrap().0;
                 Ok(())
             }
             Err(e) => Err(e),
         }
     }
 
-    pub fn __getstate__(&self, py: Python) -> PyResult<PyObject> {
-        Ok(PyBytes::new(py, &serialize(&self.argpcpd).unwrap()).to_object(py))
+    pub fn __getstate__<'py>(
+        &self,
+        py: Python<'py>,
+    ) -> PyResult<Bound<'py, PyAny>> {
+        let config = bincode::config::standard();
+        let bytes =
+            bincode::serde::encode_to_vec(&self.argpcpd, config).unwrap();
+        let list = PyList::new(py, bytes)?;
+
+        Ok(list.into_any())
     }
 
     fn __richcmp__(&self, other: &Self, op: CompareOp) -> PyResult<bool> {

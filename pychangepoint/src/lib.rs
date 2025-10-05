@@ -5,9 +5,11 @@ pub(crate) mod convert;
 use changepoint::utils;
 use pyo3::prelude::*;
 
+use pyo3::types::PyModuleMethods;
+
 #[pymodule]
 #[pyo3(name = "changepoint")]
-fn core(_py: Python, m: &PyModule) -> PyResult<()> {
+fn core(_py: Python, m: &Bound<PyModule>) -> PyResult<()> {
     m.add("__version__", env!("CARGO_PKG_VERSION"))?;
     m.add_class::<bocpd::Prior>()?;
     m.add_class::<bocpd::Bocpd>()?;
@@ -35,7 +37,7 @@ fn core(_py: Python, m: &PyModule) -> PyResult<()> {
         text_signature = "(history, n_samples)"
     )]
     fn infer_changepoints(rs: Vec<Vec<f64>>, sample_size: u32) -> Vec<f64> {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         utils::infer_changepoints(&rs, sample_size as usize, &mut rng).unwrap()
     }
 
@@ -59,7 +61,7 @@ fn core(_py: Python, m: &PyModule) -> PyResult<()> {
         rs: Vec<Vec<f64>>,
         sample_size: u32,
     ) -> Vec<f64> {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         utils::infer_pseudo_cmf_changepoints(
             &rs,
             sample_size as usize,
