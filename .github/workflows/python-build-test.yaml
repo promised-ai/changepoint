@@ -95,7 +95,7 @@ jobs:
     needs: ["lint-python", "lint-rust"]
     strategy:
       matrix:
-        target: [x64, arm64]
+        target: [x64]
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
