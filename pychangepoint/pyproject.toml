@@ -16,7 +16,8 @@ classifiers = [
     "Operating System :: OS Independent",
     "Topic :: Scientific/Engineering :: Mathematics",
 ]
-dependencies = []
+dependencies = ["numpy>=1.21.6"]
+
 
 [project.urls]
 Repository = "https://github.com/promised-ai/changepoint"
