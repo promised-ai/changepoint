@@ -5,7 +5,7 @@
 //! Which can be found [here](https://arxiv.org/pdf/0710.3742.pdf).
 
 use crate::traits::BocpdLike;
-use rand::{prelude::SmallRng, SeedableRng};
+use rand::{SeedableRng, prelude::SmallRng};
 use rv::prelude::*;
 use std::collections::VecDeque;
 
@@ -45,7 +45,7 @@ where
 impl<X, Fx, Pr> Bocpd<X, Fx, Pr>
 where
     Fx: Rv<X> + HasSuffStat<X>,
-    Pr: ConjugatePrior<X, Fx, Posterior = Pr> + Clone,
+    Pr: ConjugatePrior<X, Fx, Posterior = Pr> + HasDensity<Fx> + Clone,
     Fx::Stat: Clone,
 {
     /// Create a new Bocpd analyzer
@@ -62,7 +62,7 @@ where
     /// use changepoint::Bocpd;
     /// use rv::prelude::*;
     ///
-    /// let cpd = Bocpd::new(
+    /// let cpd: Bocpd<f64, _, _> = Bocpd::new(
     ///     250.0,
     ///     NormalGamma::new_unchecked(0.0, 1.0, 1.0, 1.0),
     /// );
@@ -116,7 +116,7 @@ where
 impl<X, Fx, Pr> BocpdLike<X> for Bocpd<X, Fx, Pr>
 where
     Fx: Rv<X> + HasSuffStat<X>,
-    Pr: ConjugatePrior<X, Fx, Posterior = Pr> + Clone,
+    Pr: ConjugatePrior<X, Fx, Posterior = Pr> + HasDensity<Fx> + Clone,
     Fx::Stat: Clone,
 {
     type Fx = Fx;
@@ -229,7 +229,7 @@ where
 mod tests {
     use super::*;
     use crate::utils::{infer_changepoints, map_changepoints, max_error};
-    use crate::{generators, BocpdLike};
+    use crate::{BocpdLike, generators};
     use rand::SeedableRng;
 
     #[test]
@@ -270,8 +270,8 @@ mod tests {
     }
 
     #[test]
-    fn detect_obvious_switch_p_cp(
-    ) -> Result<(), Box<dyn std::error::Error + 'static>> {
+    fn detect_obvious_switch_p_cp()
+    -> Result<(), Box<dyn std::error::Error + 'static>> {
         let mut rng = SmallRng::seed_from_u64(0xABCD);
         let data = generators::discontinuous_jump(
             &mut rng, 0.0, 1.0, 10.0, 5.0, 500, 700,

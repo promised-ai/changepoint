@@ -1,7 +1,7 @@
 //! A set of toy models that produce deterministic changes
 
-use changepoint::{utils, BocpdLike, BocpdTruncated};
-use rand::{rngs::SmallRng, Rng, SeedableRng};
+use changepoint::{BocpdLike, BocpdTruncated, utils};
+use rand::{Rng, SeedableRng, rngs::SmallRng};
 use rv::prelude::*;
 use std::fs::File;
 use std::{f64::NEG_INFINITY, io::prelude::*, iter::repeat};

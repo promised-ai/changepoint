@@ -2,8 +2,10 @@
 
 use rand::Rng;
 use rv::{
-    misc::argmax, prelude::Categorical, prelude::CategoricalError, prelude::Rv,
+    misc::argmax, prelude::Categorical, prelude::CategoricalError,
+    prelude::Sampleable,
 };
+
 use std::fmt::Display;
 use std::fs::File;
 use std::io::{self, prelude::*};
@@ -190,11 +192,7 @@ where
     T: PartialOrd + std::ops::Sub<Output = T>,
     for<'a> &'a T: std::ops::Sub<&'a T, Output = T>,
 {
-    if a > b {
-        a - b
-    } else {
-        b - a
-    }
+    if a > b { a - b } else { b - a }
 }
 
 /// The max-norm or max-error between two sequences.

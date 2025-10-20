@@ -5,7 +5,7 @@
 //! Which can be found [here](https://arxiv.org/pdf/0710.3742.pdf).
 
 use crate::traits::BocpdLike;
-use rand::{rngs::SmallRng, SeedableRng};
+use rand::{SeedableRng, rngs::SmallRng};
 use rv::prelude::*;
 use std::collections::VecDeque;
 
@@ -48,7 +48,7 @@ where
 impl<X, Fx, Pr> BocpdTruncated<X, Fx, Pr>
 where
     Fx: Rv<X> + HasSuffStat<X>,
-    Pr: ConjugatePrior<X, Fx, Posterior = Pr> + Clone,
+    Pr: ConjugatePrior<X, Fx, Posterior = Pr> + HasDensity<Fx> + Clone,
     Fx::Stat: Clone,
 {
     /// Create a new Bocpd analyzer
@@ -62,7 +62,7 @@ where
     /// use changepoint::BocpdTruncated;
     /// use rv::prelude::*;
     ///
-    /// let cpd = BocpdTruncated::new(
+    /// let cpd: BocpdTruncated<f64, _, _> = BocpdTruncated::new(
     ///     250.0,
     ///     NormalGamma::new_unchecked(0.0, 1.0, 1.0, 1.0),
     /// );
@@ -103,7 +103,7 @@ where
 impl<X, Fx, Pr> BocpdTruncated<X, Fx, Pr>
 where
     Fx: Rv<X> + HasSuffStat<X>,
-    Pr: ConjugatePrior<X, Fx, Posterior = Pr> + Clone,
+    Pr: ConjugatePrior<X, Fx, Posterior = Pr> + HasDensity<Fx> + Clone,
     Fx::Stat: Clone,
 {
     /// Reduce the observed values into a new BOCPD with those observed values integrated into the
@@ -130,7 +130,7 @@ where
 impl<X, Fx, Pr> BocpdLike<X> for BocpdTruncated<X, Fx, Pr>
 where
     Fx: Rv<X> + HasSuffStat<X>,
-    Pr: ConjugatePrior<X, Fx, Posterior = Pr> + Clone,
+    Pr: ConjugatePrior<X, Fx, Posterior = Pr> + HasDensity<Fx> + Clone,
     Fx::Stat: Clone,
 {
     type Fx = Fx;
@@ -268,8 +268,8 @@ mod tests {
     use super::*;
     use crate::generators;
     use crate::utils::{map_changepoints, max_error};
-    use rand::rngs::StdRng;
     use rand::SeedableRng;
+    use rand::rngs::StdRng;
 
     #[test]
     fn each_vec_is_a_probability_dist() {

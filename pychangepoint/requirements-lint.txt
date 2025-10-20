@@ -1,4 +1,4 @@
-black==23.1.0
-blackdoc==0.3.7
-mypy==1.0.0
-ruff==0.0.247
+black==25.9.0
+blackdoc==0.4.3
+mypy==1.18.2
+ruff==0.13.3

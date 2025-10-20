@@ -8,7 +8,7 @@
 //! > Market Rate [TB3MS], retrieved from FRED, Federal Reserve Bank of St. Louis;
 //! > https://fred.stlouisfed.org/series/TB3MS, August 5, 2019.
 
-use changepoint::{utils, BocpdLike, BocpdTruncated};
+use changepoint::{BocpdLike, BocpdTruncated, utils};
 use rv::prelude::*;
 use std::io;
 use utils::map_changepoints;

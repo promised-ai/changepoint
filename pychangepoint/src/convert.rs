@@ -1,43 +1,39 @@
 use nalgebra::{DMatrix, DVector};
+use numpy::{PyArrayLike1, PyArrayLike2, PyUntypedArrayMethods, TypeMustMatch};
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 
-pub(crate) fn pyany_to_f64(x: &PyAny) -> PyResult<f64> {
+pub(crate) fn pyany_to_f64<'py>(x: &'py Bound<'py, PyAny>) -> PyResult<f64> {
     x.extract()
 }
 
-pub(crate) fn pyany_to_bool(x: &PyAny) -> PyResult<bool> {
-    x.is_true()
+pub(crate) fn pyany_to_bool<'py>(x: &'py Bound<'py, PyAny>) -> PyResult<bool> {
+    x.is_truthy()
 }
 
-pub(crate) fn pyany_to_u32(x: &PyAny) -> PyResult<u32> {
+pub(crate) fn pyany_to_u32<'py>(x: &'py Bound<'py, PyAny>) -> PyResult<u32> {
     x.extract()
 }
 
-pub(crate) fn pyany_to_dvector(x: &PyAny) -> PyResult<DVector<f64>> {
-    Python::with_gil(|py| {
-        let np = PyModule::import(py, "numpy")?;
-        let xs: Vec<f64> = np.getattr("array")?.call1((x,))?.extract()?;
-        Ok(xs)
-    })
-    .map(DVector::from)
+pub(crate) fn pyarray1_to_dvector<'py>(
+    x: PyArrayLike1<'py, f64, TypeMustMatch>,
+) -> PyResult<DVector<f64>> {
+    let data = x
+        .as_slice()
+        .map_err(|_| PyValueError::new_err("Non-contiguous memory error"))?;
+
+    let mat: DVector<f64> = DVector::from_column_slice(data);
+    Ok(mat)
 }
 
-pub(crate) fn pyany_to_dmatrix(x: &PyAny) -> PyResult<DMatrix<f64>> {
-    use numpy::PyArray2;
-    Python::with_gil(|py| {
-        let np = PyModule::import(py, "numpy")?;
-        let xs: &PyArray2<f64> = np.getattr("array")?.call1((x,))?.extract()?;
-        let shape = xs.shape();
+pub(crate) fn pyarray2_to_dmatrix<'py>(
+    array: PyArrayLike2<'py, f64, TypeMustMatch>,
+) -> PyResult<DMatrix<f64>> {
+    let shape = array.shape();
+    let data = array
+        .as_slice()
+        .map_err(|_| PyValueError::new_err("Non-contiguous memory error"))?;
 
-        let data = unsafe {
-            xs.as_slice().map_err(|_| {
-                PyValueError::new_err("Non-contiguous memory error")
-            })
-        }?;
-
-        let mat: DMatrix<f64> =
-            DMatrix::from_row_slice(shape[0], shape[1], data);
-        Ok(mat)
-    })
+    let mat: DMatrix<f64> = DMatrix::from_row_slice(shape[0], shape[1], data);
+    Ok(mat)
 }

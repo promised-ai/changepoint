@@ -1,4 +1,4 @@
-name: 'Python: Build and Test'
+name: "Python: Build and Test"
 
 on:
   push:
@@ -8,9 +8,9 @@ on:
   workflow_dispatch:
   pull_request:
     paths:
-      - 'changepoint/**'
-      - 'pychangepoint/**'
-      - '.github/workflows/python-build-test.yaml'
+      - "changepoint/**"
+      - "pychangepoint/**"
+      - ".github/workflows/python-build-test.yaml"
 
 jobs:
   lint-python:
@@ -18,28 +18,26 @@ jobs:
     defaults:
       run:
         working-directory: pychangepoint
-    
+
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v6
         with:
-          python-version: '3.11'
-          cache: 'pip'
+          python-version: "3.13"
+          cache: "pip"
           cache-dependency-path: "pychangepoint/requirements-lint.txt"
-      
+
       - name: Install Python dependencies
         run: |
           pip install --upgrade pip
           pip install -r requirements-lint.txt
-          pip install black[jupyter]
 
       - name: Lint Python
         run: |
-          black --check .
-          blackdoc --check .
-          ruff . --exit-non-zero-on-fix
+          ruff check . --exit-non-zero-on-fix
+          ruff format --check .
 
   lint-rust:
     runs-on: ubuntu-latest
@@ -48,7 +46,7 @@ jobs:
         working-directory: pychangepoint
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
@@ -64,8 +62,8 @@ jobs:
 
       - name: Run clippy
         env:
-          RUSTFLAGS: -C debuginfo=0  # Do not produce debug symbols to keep memory usage down
-        run : |
+          RUSTFLAGS: -C debuginfo=0 # Do not produce debug symbols to keep memory usage down
+        run: |
           cargo clippy
 
   linux:
@@ -75,11 +73,11 @@ jobs:
       matrix:
         target: [x86_64, x86, aarch64, armv7, s390x, ppc64le]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
-      - uses: actions/setup-python@v4
+      - uses: actions/setup-python@v6
         with:
-          python-version: '3.10'
+          python-version: "3.13"
       - name: Build wheels
         uses: PyO3/maturin-action@v1
         with:
@@ -87,9 +85,9 @@ jobs:
           args: --release --out dist --find-interpreter --manifest-path pychangepoint/Cargo.toml
           manylinux: auto
       - name: Upload wheels
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
-          name: wheels
+          name: wheels-linux-${{ matrix.target }}
           path: dist
 
   windows:
@@ -97,13 +95,13 @@ jobs:
     needs: ["lint-python", "lint-rust"]
     strategy:
       matrix:
-        target: [x64, x86]
+        target: [x64]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
-      - uses: actions/setup-python@v4
+      - uses: actions/setup-python@v6
         with:
-          python-version: '3.10'
+          python-version: "3.13"
           architecture: ${{ matrix.target }}
       - name: Build wheels
         uses: PyO3/maturin-action@v1
@@ -111,9 +109,9 @@ jobs:
           target: ${{ matrix.target }}
           args: --release --out dist --find-interpreter --manifest-path pychangepoint/Cargo.toml
       - name: Upload wheels
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
-          name: wheels
+          name: wheels-windows-${{ matrix.target }}
           path: dist
 
   macos:
@@ -121,31 +119,41 @@ jobs:
     needs: ["lint-python", "lint-rust"]
     strategy:
       matrix:
-        target: [x86_64, aarch64]
+        target: [aarch64]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
-      - uses: actions/setup-python@v4
+      - uses: actions/setup-python@v6
         with:
-          python-version: '3.10'
+          python-version: "3.13"
       - name: Build wheels
         uses: PyO3/maturin-action@v1
         with:
           target: ${{ matrix.target }}
           args: --release --out dist --find-interpreter --manifest-path pychangepoint/Cargo.toml
       - name: Upload wheels
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheels-macos-${{ matrix.target }}
+          path: dist
+
+  merge:
+    runs-on: ubuntu-latest
+    needs: ["linux", "windows", "macos"]
+    steps:
+      - name: Merge Artifacts
+        uses: actions/upload-artifact/merge@v4
         with:
           name: wheels
-          path: dist
+          pattern: wheels-*
 
   release:
     name: Release
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/py')
-    needs: [linux, windows, macos]
+    needs: merge
     steps:
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v5
         with:
           name: wheels
       - name: Publish to PyPI
