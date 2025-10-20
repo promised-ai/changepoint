@@ -25,10 +25,7 @@ serde1 = ["serde", "rv/serde1"]
 
 [dependencies]
 rand = { version = "0.9", features = ["small_rng"] }
-rv = { version = "0.19", features = [
-    "process",
-    "arraydist",
-], git = "https://github.com/promised-ai/rv.git", branch = "release/v0.19.0" }
+rv = { version = "0.19", features = ["process", "arraydist"] }
 nalgebra = { version = "0.34" }
 serde = { version = "1", optional = true, features = ["derive"] }
 serde_derive = { version = "1", optional = true }

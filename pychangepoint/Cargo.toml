@@ -22,10 +22,7 @@ nalgebra = { version = "0.34" }
 numpy = { version = "0.26", features = ["nalgebra"] }
 pyo3 = { version = "0.26", features = ["extension-module"] }
 rand = { version = "0.9", features = ["small_rng"] }
-rv = { version = "0.19", features = [
-    "process",
-    "arraydist",
-], git = "https://github.com/promised-ai/rv.git", branch = "release/v0.19.0" }
+rv = { version = "0.19", features = ["process", "arraydist"] }
 serde = "1.0"
 
 [features]
